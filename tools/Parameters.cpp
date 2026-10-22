@@ -5,6 +5,9 @@
 //                            automatable. tests/reference/parameters.txt holds the reference:
 //                            an ID must never change or disappear.
 //   FasePhuckerParams test   the automation names, the channel links and loading a session
+//   FasePhuckerParams factory <file.fphpreset>...
+//                            a saved preset as a factory preset for Source/Presets.cpp: only the
+//                            values that differ from the defaults
 
 #include "../Source/PluginProcessor.h"
 
@@ -137,10 +140,48 @@ namespace
     }
 }
 
+namespace
+{
+    int factory (int argc, char** argv)
+    {
+        FasePhuckerAudioProcessor proc;
+        for (int i = 2; i < argc; ++i)
+        {
+            const auto xml = juce::XmlDocument::parse (juce::File (juce::String::fromUTF8 (argv[i])));
+            if (xml == nullptr)
+            {
+                std::fprintf (stderr, "can't read %s\n", argv[i]);
+                return 1;
+            }
+            juce::StringArray values;
+            for (auto* e : xml->getChildWithTagNameIterator ("PARAM"))
+            {
+                const auto id = e->getStringAttribute ("id");
+                auto* p = proc.apvts.getParameter (id);
+                if (p == nullptr)
+                    continue;
+                const float v = (float) e->getDoubleAttribute ("value");
+                const float def = p->convertFrom0to1 (p->getDefaultValue());
+                if (std::abs (v - def) > 1.0e-4f * std::max (1.0f, std::abs (def)))
+                {
+                    auto number = juce::String (v, 7).trimCharactersAtEnd ("0");
+                    number = number.endsWithChar ('.') ? number + "0" : number;   // always a valid float literal
+                    values.add ("{ \"" + id + "\", " + number + "f }");
+                }
+            }
+            std::printf ("{ \"%s\", {\n    %s } },\n", xml->getStringAttribute ("name").toRawUTF8(),
+                         values.joinIntoString (",\n    ").toRawUTF8());
+        }
+        return 0;
+    }
+}
+
 // called from tools/ParametersMain.cpp
 int fphParameters (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI gui;
     const juce::String mode (argc > 1 ? argv[1] : "list");
+    if (mode == "factory")
+        return factory (argc, argv);
     return mode == "test" ? test() : list();
 }
