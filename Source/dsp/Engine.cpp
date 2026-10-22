@@ -18,6 +18,7 @@ void Engine::prepare (double sampleRate, int channels, int oversampling)
         {
             disperse[(size_t) b][(size_t) c].prepare (sr, 1000u + 17u * (unsigned) b + 7u * (unsigned) c);
             distortion[(size_t) b][(size_t) c].prepare (sr, oversampling, prm.osLinearPhase, 2000u + 13u * (unsigned) b + 5u * (unsigned) c);
+            feedback[(size_t) b][(size_t) c].prepare (sr);
         }
     output.prepare (sr, numCh);
     reset();
@@ -33,6 +34,9 @@ void Engine::reset()
     for (auto& band : distortion)
         for (auto& d : band)
             d.reset();
+    for (auto& band : feedback)
+        for (auto& f : band)
+            f.reset();
     for (auto& d : inputDelay) { d.clear(); d.d = latency(); }
     for (auto& band : bandDelay)
         for (auto& d : band) { d.clear(); d.d = latency(); }
@@ -120,13 +124,14 @@ void Engine::processSubBlock (float* const* io, int offset, int n)
                 l[i] = m; r[i] = s;
             }
 
-        // the sections, per channel: Distortion (Pre) -> Disperse -> Distortion (Post)
+        // the sections, per channel: Distortion (Pre) -> Feedback loop around Disperse -> Distortion (Post)
         for (int c = 0; c < numCh; ++c)
         {
             const auto& ch = bp.ch[(size_t) c];
             float* x = c == 0 ? l : r;
             auto& disp = disperse[(size_t) b][(size_t) c];
             auto& dist = distortion[(size_t) b][(size_t) c];
+            auto& fb = feedback[(size_t) b][(size_t) c];
             auto& order = orderFade[(size_t) b][(size_t) c];
             auto& in = inputFade[(size_t) b][(size_t) c];
             bool& isPost = post[(size_t) b][(size_t) c];
@@ -141,6 +146,7 @@ void Engine::processSubBlock (float* const* io, int offset, int n)
                 isPost = ch.post;
                 disp.reset();
                 dist.reset();
+                fb.reset();
                 order.jump (1.0f);
                 in.jump (0.0f);
                 in.set (1.0f, 2 * fade);
@@ -150,8 +156,9 @@ void Engine::processSubBlock (float* const* io, int offset, int n)
 
             disp.update (ch, ch.pinch, ch.spread, ch.dispMix, (double) ch.freq);
             dist.update (ch, ch.drive, ch.bias, ch.phat, ch.distTone, ch.distMix);
+            fb.update (ch, ch.fbAmount, ch.fbTimeMs, ch.fbTone, ch.fbMix);
             if (! isPost) dist.process (x, n);
-            disp.process (x, n);
+            fb.process (x, n, disp);
             if (isPost) dist.process (x, n);
             for (int i = 0; i < n; ++i)
                 x[i] *= order.next();

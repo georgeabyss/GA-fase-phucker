@@ -208,38 +208,45 @@ float Disperse::runChain (bool useUnhinged, float x, int count)
     return useUnhinged ? u.run (x, 0, count) : b.run ((double) x, count);
 }
 
-void Disperse::process (float* x, int n)
+float Disperse::processSample (float dry)
 {
     if (! running)
-        return;
+        return dry;
 
-    for (int i = 0; i < n; ++i)
+    float wetOut = runChain (unhinged, dry, stages);
+    if (stageFade < 1.0f)
     {
-        const float dry = x[i];
-        float wetOut = runChain (unhinged, dry, stages);
-        if (stageFade < 1.0f)
-        {
-            const float before = unhinged ? uOld.run (dry, 0, oldStages) : bOld.run ((double) dry, oldStages);
-            wetOut = before + (wetOut - before) * stageFade;
-        }
-        else if (modeFade < 1.0f)
-        {
-            const float before = runChain (wasUnhinged, dry, stages);
-            wetOut = before + (wetOut - before) * modeFade;
-        }
-
-        x[i] = dry + (wetOut - dry) * mix;
-
-        if (mix != mixTarget)
-        {
-            mix += mixStep;
-            if ((mixStep > 0.0f && mix > mixTarget) || (mixStep < 0.0f && mix < mixTarget)) mix = mixTarget;
-        }
-        if (stageFade < 1.0f && (stageFade += fadeStep) >= 1.0f) { stageFade = 1.0f; oldStages = stages; }
-        if (modeFade < 1.0f && (modeFade += fadeStep) >= 1.0f)   { modeFade = 1.0f; wasUnhinged = unhinged; }
+        const float before = unhinged ? uOld.run (dry, 0, oldStages) : bOld.run ((double) dry, oldStages);
+        wetOut = before + (wetOut - before) * stageFade;
+    }
+    else if (modeFade < 1.0f)
+    {
+        const float before = runChain (wasUnhinged, dry, stages);
+        wetOut = before + (wetOut - before) * modeFade;
     }
 
-    if (mix <= 0.0f && mixTarget <= 0.0f)
+    const float out = dry + (wetOut - dry) * mix;
+
+    if (mix != mixTarget)
+    {
+        mix += mixStep;
+        if ((mixStep > 0.0f && mix > mixTarget) || (mixStep < 0.0f && mix < mixTarget)) mix = mixTarget;
+    }
+    if (stageFade < 1.0f && (stageFade += fadeStep) >= 1.0f) { stageFade = 1.0f; oldStages = stages; }
+    if (modeFade < 1.0f && (modeFade += fadeStep) >= 1.0f)   { modeFade = 1.0f; wasUnhinged = unhinged; }
+    return out;
+}
+
+void Disperse::endBlock()
+{
+    if (running && mix <= 0.0f && mixTarget <= 0.0f)
         running = false;
+}
+
+void Disperse::process (float* x, int n)
+{
+    for (int i = 0; i < n; ++i)
+        x[i] = processSample (x[i]);
+    endBlock();
 }
 }

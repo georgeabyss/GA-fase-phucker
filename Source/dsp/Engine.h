@@ -4,6 +4,7 @@
 #include "BandSplitter.h"
 #include "Disperse.h"
 #include "Distortion.h"
+#include "Feedback.h"
 
 namespace fp::dsp
 {
@@ -49,6 +50,7 @@ private:
     std::array<BandSplitter, 2> splitters;
     std::array<std::array<Disperse, 2>, kMaxBands> disperse;   // [band][channel]
     std::array<std::array<Distortion, 2>, kMaxBands> distortion;
+    std::array<std::array<Feedback, 2>, kMaxBands> feedback;
 
     // a fixed delay (Distortion's latency) for the dry paths: the output stage's, and a band that is off
     struct Delay

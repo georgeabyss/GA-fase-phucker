@@ -23,6 +23,8 @@ public:
     void update (const ChannelParams&, float pinch, float spread, float mix, double freq);
 
     void process (float* x, int n);   // in place
+    float processSample (float x);    // the same, one sample (inside the feedback loop)
+    void endBlock();                  // after a block of processSample(): stops the chain once Mix is 0
 
 private:
     struct Behaved

@@ -362,7 +362,7 @@ namespace
     }
 
     // ---- Distortion
-    std::vector<float> impulseResponseAt (const Params& p, int factor, int length, int* reportedLatency = nullptr)
+    std::vector<float> impulseResponseAt (const Params& p, int factor, int length, int* reportedLatency = nullptr, float amplitude = 1.0f)
     {
         Engine e;
         e.setParams (p);
@@ -372,8 +372,8 @@ namespace
         constexpr int settle = 9600;   // 200 ms of silence first: every glide has arrived
         AudioBuffer<float> a (2, settle + length);
         a.clear();
-        a.setSample (0, settle, 1.0f);
-        a.setSample (1, settle, 1.0f);
+        a.setSample (0, settle, amplitude);
+        a.setSample (1, settle, amplitude);
         run (e, a);
         return { a.getReadPointer (0) + settle, a.getReadPointer (0) + settle + length };
     }
@@ -491,6 +491,85 @@ namespace
         }
     }
 
+    // ---- Feedback
+    Params looped (float amount, float timeMs, float tone, bool invert, bool withDisperse)
+    {
+        Params p = clean (1);
+        for (auto& c : p.band[0].ch)
+        {
+            c.fbOn = true; c.fbAmount = amount; c.fbTimeMs = timeMs; c.fbTone = tone; c.invert = invert; c.fbMix = 1.0f;
+            c.dispOn = withDisperse; c.stages = 256; c.freq = 400.0f; c.spread = 0.4f;
+        }
+        return p;
+    }
+
+    void checkFeedback()
+    {
+        // an echo: Disperse off, 50 %, 1 ms (48 samples); Invert flips it
+        for (bool invert : { false, true })
+        {
+            const auto ir = impulseResponseAt (looped (0.5f, 1.0f, 0.5f, invert, false), 1, 256, nullptr, 0.01f);
+            const float first = ir[48] / 0.01f, second = ir[96] / 0.01f;
+            const float want = invert ? -0.5f : 0.5f;
+            expect (std::abs (first - want) < 0.02f && std::abs (second - 0.25f) < 0.02f,
+                    String ("echo after 48 samples at ") + String (first, 3) + ", then " + String (second, 3) + (invert ? " (Invert)" : ""));
+        }
+
+        // Feedback off: the same as Amount 0
+        {
+            Params off = looped (0.0f, 5.0f, 0.5f, false, true);
+            for (auto& c : off.band[0].ch) { c.fbOn = false; c.fbMix = 0.3f; }   // Mix does nothing while off
+            const auto a = impulseResponseAt (off, 1, 1 << 14), b = impulseResponseAt (looped (0.0f, 5.0f, 0.5f, false, true), 1, 1 << 14);
+            float worst = 0.0f;
+            for (size_t i = 0; i < a.size(); ++i) worst = std::max (worst, std::abs (a[i] - b[i]));
+            expect (worst < 1.0e-6f, "Feedback off (Mix 30 %) = Amount 0: largest difference " + String (worst));
+        }
+
+        // stable and decaying at 95 %, at the extremes of Tone and Time, with and without Disperse
+        {
+            float peak = 0.0f, worstRatio = -100.0f;
+            bool finite = true;
+            for (float tone : { 0.0f, 1.0f })
+                for (float time : { 0.1f, 50.0f })
+                    for (bool invert : { false, true })
+                        for (bool withDisperse : { false, true })
+                        {
+                            Engine e;
+                            e.setParams (looped (0.95f, time, tone, invert, withDisperse));
+                            e.prepare (kRate, 2, 1);
+                            AudioBuffer<float> a (2, (int) kRate * 4);
+                            a.clear();
+                            Rng rng (77);
+                            for (int i = 0; i < (int) kRate * 2; ++i)
+                                a.setSample (0, i, 0.5f * rng.bipolar()), a.setSample (1, i, 0.5f * rng.bipolar());
+                            run (e, a);
+                            for (int c = 0; c < 2; ++c)
+                                for (int i = 0; i < a.getNumSamples(); ++i)
+                                {
+                                    finite = finite && std::isfinite (a.getSample (c, i));
+                                    peak = std::max (peak, std::abs (a.getSample (c, i)));
+                                }
+                            const int half = (int) (kRate * 0.5);
+                            const float early = a.getRMSLevel (0, (int) kRate * 2, half), late = a.getRMSLevel (0, (int) kRate * 4 - half, half);
+                            worstRatio = std::max (worstRatio, Decibels::gainToDecibels (late, -200.0f) - Decibels::gainToDecibels (early, -200.0f));
+                        }
+            expect (finite && peak < 4.0f && worstRatio < -3.0f,
+                    "Amount 95 %, Tone 0 / 100, Time 0.1 / 50 ms, Invert, with and without Disperse: peak " + String (peak, 2)
+                        + ", the slowest tail falls " + String (-worstRatio, 1) + " dB in 1.5 s");
+        }
+
+        // switching Feedback on: no click
+        {
+            Params p = looped (0.6f, 3.0f, 0.5f, false, true);
+            for (auto& c : p.band[0].ch) c.fbOn = false;
+            Params on = p;
+            for (auto& c : on.band[0].ch) c.fbOn = true;
+            const float m = stepDuring (p, [] (Params& q) { for (auto& c : q.band[0].ch) c.fbOn = true; });
+            const float still = std::max (stepDuring (p, [] (Params&) {}), stepDuring (on, [] (Params&) {}));
+            expect (m < still * 1.25f, "Feedback on: largest step " + String (m, 4) + " (off or on without a switch: " + String (still, 4) + ")");
+        }
+    }
+
     //==========================================================================
     // renders through the whole plug-in
     struct RenderDef
@@ -537,6 +616,20 @@ namespace
                     set (p, channelId (1, 0, pid::ch::phat), 70.0f);
                     set (p, channelId (1, 0, pid::ch::bias), 30.0f);
                     set (p, channelId (1, 0, pid::ch::distTone), 70.0f);
+                } },
+            { "feedback_long", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::distOn), 0.0f);
+                    set (p, channelId (1, 0, pid::ch::fbAmt), 85.0f);
+                    set (p, channelId (1, 0, pid::ch::fbTime), 20.0f);
+                } },
+            { "feedback_invert_tone", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::distOn), 0.0f);
+                    set (p, channelId (1, 0, pid::ch::fbAmt), 70.0f);
+                    set (p, channelId (1, 0, pid::ch::fbTime), 2.0f);
+                    set (p, channelId (1, 0, pid::ch::invert), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbTone), 80.0f);
                 } },
             { "3bands_ms_lr", [] (FasePhuckerAudioProcessor& p)
                 {
@@ -675,6 +768,7 @@ int fphRender (int argc, char** argv)
     checkBands();
     checkDisperse();
     checkDistortion();
+    checkFeedback();
     runRenders (dir, false);
     std::printf ("\n%s\n", failures == 0 ? "All DSP checks passed." : "DSP checks failed.");
     return failures == 0 ? 0 : 1;
