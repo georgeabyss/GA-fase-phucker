@@ -1,0 +1,19 @@
+Fase Phucker - how to install
+=============================
+
+This installer is not signed with a paid Apple developer certificate, so macOS
+will not open it with a plain double-click the first time. That is expected.
+
+macOS 15 (Sequoia) and newer:
+  1. Double-click the .pkg. macOS says it cannot be opened. Click "Done".
+  2. Open System Settings > Privacy & Security and scroll down.
+     Next to "Fase Phucker ... was blocked", click "Open Anyway".
+  3. Confirm with your password. The installer starts.
+
+macOS 11 to 14:
+  Right-click (or Ctrl-click) the .pkg, choose "Open", then "Open" again.
+
+Then follow the installer. You can choose VST3 and / or Audio Unit.
+Restart your DAW (or rescan plug-ins) afterwards.
+
+Needs macOS 11 (Big Sur) or newer, Apple Silicon or Intel.

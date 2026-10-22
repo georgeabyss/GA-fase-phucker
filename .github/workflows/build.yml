@@ -1,19 +1,36 @@
-# Builds the Windows VST3 on GitHub's own machines, on every push to main (or by hand: Actions > Build >
-# Run workflow); the zip is under the run's "Artifacts". JUCE is the version the framework pins.
-# The Mac plug-ins are built locally (faster), as for Hyper! Hyper! Dimension.
+# Builds the Windows VST3 on GitHub's own machines. The Mac plug-ins and installer are built locally
+# (make_installer.sh), as for Hyper! Hyper! Dimension. JUCE is the version the framework pins.
+#
+# - Every push to main: build only, the zip is under the run's "Artifacts" (for testing).
+# - Publishing a release: the zip is attached to that release, next to the Mac zip.
+# - By hand (Actions > Build > Run workflow): enter a release tag (e.g. v0.1.0) to attach the
+#   Windows zip to a release that already exists; leave it empty to just build.
 name: Build
 
 on:
   push:
     branches: [ main ]
+  release:
+    types: [ published ]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Attach the build to this existing release, e.g. v0.1.0 (empty: just build)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # needed to attach the zip to a release
 
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
           submodules: recursive   # framework/ (ga-framework)
 
       - name: Get JUCE (the version the framework pins)
@@ -36,3 +53,10 @@ jobs:
         with:
           name: FasePhucker-Windows-VST3
           path: dist/*.zip
+
+      - name: Attach to the release
+        if: env.RELEASE_TAG != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$env:RELEASE_TAG" (Get-ChildItem dist/*.zip).FullName --clobber

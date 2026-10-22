@@ -1,0 +1,4 @@
+#!/bin/bash
+# Runs after the Audio Unit is installed: restart the AU registry so hosts see the new version.
+killall -9 AudioComponentRegistrar 2>/dev/null || true
+exit 0
