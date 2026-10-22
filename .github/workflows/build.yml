@@ -1,5 +1,6 @@
-# Builds Fase Phucker on GitHub's own machines, on every push to main (or by hand: Actions > Build >
-# Run workflow). The zips are under the run's "Artifacts". JUCE is the version the framework pins.
+# Builds the Windows VST3 on GitHub's own machines, on every push to main (or by hand: Actions > Build >
+# Run workflow); the zip is under the run's "Artifacts". JUCE is the version the framework pins.
+# The Mac plug-ins are built locally (faster), as for Hyper! Hyper! Dimension.
 name: Build
 
 on:
@@ -8,36 +9,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  mac:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive   # framework/ (ga-framework)
-
-      - name: Get JUCE (the version the framework pins) and Ninja
-        run: |
-          git clone --depth 1 --branch "$(cat framework/cmake/juce-version.txt)" https://github.com/juce-framework/JUCE.git ../JUCE
-          brew install ninja
-
-      - name: Build (universal VST3 and AU)
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build
-
-      - name: Package
-        run: |
-          version=$(sed -n 's/^project(FasePhucker VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
-          mkdir -p dist
-          cd build/FasePhucker_artefacts/Release
-          ditto -c -k --keepParent "VST3/Fase Phucker.vst3" "$GITHUB_WORKSPACE/dist/FasePhucker-$version-Mac-VST3.zip"
-          ditto -c -k --keepParent "AU/Fase Phucker.component" "$GITHUB_WORKSPACE/dist/FasePhucker-$version-Mac-AU.zip"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: FasePhucker-Mac
-          path: dist/*.zip
-
   windows:
     runs-on: windows-latest
     steps:

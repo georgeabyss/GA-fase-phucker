@@ -236,7 +236,7 @@ None open. Not approved for now: a signal-order display in the UI, and defaultin
 
 Same workflow as the refactor: one step per commit, stop after each.
 
-1. **Repo skeleton.** `framework/` as a submodule, built with `ga_add_plugin()`, own plugin code, bundle ID and preset folder, only the shared GA parameters. The window is an empty 806 × 465 panel (945 × 545 on screen at 100 %) with the bottom strip. Mac and Windows CI build it, and it loads in Logic and Ableton.
+1. **Repo skeleton.** `framework/` as a submodule, built with `ga_add_plugin()`, own plugin code, bundle ID and preset folder, only the shared GA parameters. The window is an empty 806 × 465 panel (945 × 545 on screen at 100 %) with the bottom strip. Windows CI builds it (the Mac plug-ins are built locally, as for Hyper! Hyper! Dimension), and it loads in Logic and Ableton.
 2. **Parameter layout.** Every ID from the parameter scheme, created up front. IDs can't change after this.
    - Linked sections: the DSP reads Side from Mid's parameters, so only Mid counts while a section is linked; unlinking copies Mid to Side once.
    - b1/b2/b3 are always the 1st/2nd/3rd band of the current mode.
