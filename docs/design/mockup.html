@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fase Phucker mockup</title>
+<script>
+/* minimal standalone renderer for this mockup (the design canvas runtime is not needed) */
+window.DCLogic = class { constructor(p){ this.props = p || {}; this.state = {}; } setState(p){ Object.assign(this.state, p); window.__render(); } forceUpdate(){ window.__render(); } };
+window.addEventListener('DOMContentLoaded', () => {
+  const xdc = document.querySelector('x-dc');
+  const helmet = xdc.querySelector('helmet');
+  if (helmet) { [...helmet.children].forEach(c => document.head.appendChild(c)); helmet.remove(); }
+  const tpl = xdc.innerHTML;
+  const src = document.querySelector('script[data-dc-script]').textContent;
+  const Component = new Function('DCLogic', src + '; return Component;')(window.DCLogic);
+  const comp = new Component({});
+  const look = (path, scope) => { path = path.trim(); if (path === 'true') return true; if (path === 'false') return false; if (/^-?\d/.test(path)) return +path;
+    return path.split('.').reduce((o, k) => o == null ? undefined : o[k], scope); };
+  const sub = (s, scope) => s.replace(/\{\{([^}]+)\}\}/g, (_, p) => { const v = look(p, scope); return v == null ? '' : v; });
+  function proc(node, scope) {
+    if (node.nodeType === 3) { if (node.nodeValue.includes('{{')) node.nodeValue = sub(node.nodeValue, scope); return; }
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'sc-for') {
+      const list = look(node.getAttribute('list').replace(/[{}]/g, ''), scope) || [], as = node.getAttribute('as');
+      const frag = document.createDocumentFragment();
+      list.forEach((it, i) => { const wrap = document.createElement('div'); wrap.innerHTML = node.innerHTML;
+        const sc = Object.assign(Object.create(scope), { [as]: it, $index: i });
+        [...wrap.childNodes].forEach(c => { frag.appendChild(c); proc(c, sc); }); });
+      node.replaceWith(frag); return;
+    }
+    if (tag === 'sc-if') {
+      const v = look(node.getAttribute('value').replace(/[{}]/g, ''), scope);
+      const kids = [...node.childNodes]; if (v) { kids.forEach(c => { node.before(c); proc(c, scope); }); } node.remove(); return;
+    }
+    for (const a of [...node.attributes]) {
+      if (!a.value.includes('{{')) continue;
+      const m = a.value.match(/^\{\{([^}]+)\}\}$/);
+      if (/^on[A-Z]/.test(a.name) || /^on[a-z]/.test(a.name)) { const fn = m && look(m[1], scope); node.removeAttribute(a.name);
+        if (typeof fn === 'function') node.addEventListener(a.name.slice(2).toLowerCase(), fn); continue; }
+      const v = sub(a.value, scope);
+      if (a.name === 'value' && tag === 'select') { node.__v = v; node.removeAttribute('value'); } else node.setAttribute(a.name, v);
+    }
+    [...node.childNodes].forEach(c => proc(c, scope));
+    if (tag === 'select' && node.__v !== undefined) node.value = node.__v;
+  }
+  window.__render = () => { xdc.innerHTML = tpl; const vals = comp.renderVals(); [...xdc.childNodes].forEach(c => proc(c, vals)); };
+  window.__comp = comp;
+  window.__render();
+});
+
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d0e10}
+a{color:#b18cfe}a:hover{color:#d9c7ff}
+.fp button{font-family:inherit;cursor:pointer}
+.recess{background:linear-gradient(#08090a,#131417);border:1px solid #000;border-radius:4px;box-shadow:0 1px 0 #34373c}
+.inset{background:linear-gradient(#0c0d0f,#121316);border:1px solid #000;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(177,140,254,.18),0 1px 0 rgba(255,255,255,.05)}
+.sec-head{display:flex;align-items:center;gap:8px;height:24px;padding:0 2px 7px;border-bottom:1px solid #2a2c31}
+.sec-title{white-space:nowrap;flex:none;font-size:14px;font-weight:700;letter-spacing:.14em;color:#a3a6b2}
+.sel-wrap{position:relative;display:inline-flex}
+.sel{appearance:none;-webkit-appearance:none;height:34px;padding:0 28px 0 11px;background:linear-gradient(#08090a,#131417);border:1px solid #000;border-radius:4px;box-shadow:0 1px 0 #34373c;color:#f0f1f3;font-family:inherit;font-size:12.5px;font-weight:700;letter-spacing:.06em;cursor:pointer}
+.sel:hover{border-color:rgba(177,140,254,.5)}
+.sel option{background:#17181b;color:#f0f1f3}
+.sel-caret{position:absolute;right:10px;top:50%;margin-top:-5px;pointer-events:none}
+.solo{width:24px;height:24px;padding:0;flex:none;font-size:12px;font-weight:700;color:#a3a6ad;display:flex;align-items:center;justify-content:center}
+.solo:hover{color:#f0f1f3}
+.solo-on,.solo-on:hover{background:radial-gradient(circle at 45% 40%,#ffe0c2,#ff9a3c 60%,#c8641e);color:#2a1606;box-shadow:0 0 0 1px #000,0 0 10px 2px rgba(255,154,60,.45)}
+.tab-off .tab-pick{opacity:.4}
+.linkbtn{height:34px;display:flex;align-items:center;gap:7px;padding:0 12px;color:#a3a6ad;font-size:12px;font-weight:700;letter-spacing:.1em;white-space:nowrap}
+.linkbtn:hover{color:#f0f1f3}
+.linkbtn-on,.linkbtn-on:hover{background:#b18cfe;color:#141518;box-shadow:0 0 10px rgba(177,140,254,.35)}
+.sec-body{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);align-items:start;padding-top:18px;transition:opacity .15s}
+.sec-l .sec-head{margin-right:22px}
+.sec-r .sec-head{margin-left:22px}
+.sel-sm{font-size:11.5px;padding:0 22px 0 9px}
+.sel-head{height:24px;font-size:10.5px;padding:0 20px 0 8px;white-space:nowrap}
+.sel-hhd{width:84px;height:24px;padding:0 15px 0 3px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:10.5px;font-weight:700;letter-spacing:.02em;text-align:center;text-align-last:center;white-space:nowrap}
+.sel-hdr{height:24px}
+.sel-hhd + .sel-caret{right:6px}
+.lamp{width:24px;height:24px;padding:0;flex:none;border-radius:2px;background:#050506;border:1px solid #000;display:flex;align-items:center;justify-content:center}
+.lamp .tog-in{position:relative;width:19px;height:19px;border-radius:1.5px;background:radial-gradient(circle at 50% 46%,#3a3148,#251f30 75%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.lamp-on .tog-in{background:radial-gradient(circle at 50% 46%,#e6d8ff 0%,#b18cfe 55%,#8559e0 100%)}
+.lamp .tog-in::before,.lamp .tog-in::after{content:"";position:absolute;left:2px;right:2px;height:5px;border-radius:2px}
+.lamp .tog-in::before{top:2px;background:linear-gradient(to bottom,rgba(255,255,255,.26),rgba(255,255,255,0))}
+.lamp .tog-in::after{bottom:2px;background:linear-gradient(to top,rgba(255,255,255,.17),rgba(255,255,255,0))}
+.lamp-on .tog-in::before{background:linear-gradient(to bottom,rgba(255,255,255,.6),rgba(255,255,255,0))}
+.lamp-on .tog-in::after{background:linear-gradient(to top,rgba(255,255,255,.42),rgba(255,255,255,0))}
+.follow{height:24px;flex:none;padding:0 9px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.12em;color:#8f9299;white-space:nowrap}
+.follow:hover{color:#f0f1f3}
+.mod-src{width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;flex:none;cursor:grab;user-select:none;font-size:10px;font-weight:700;letter-spacing:.12em;color:#d9c7ff;fill:#b18cfe;white-space:nowrap}
+.mod-src:hover{color:#f3ecff}
+.mod-count{min-width:14px;height:14px;border-radius:7px;background:#b18cfe;color:#141518;font-size:9px;letter-spacing:0;display:flex;align-items:center;justify-content:center}
+.donuts{display:flex;align-items:center;gap:3px;flex:none}
+.donut{width:22px;height:22px;padding:0;border:0;background:transparent;flex:none;cursor:ns-resize;display:flex;border-radius:50%}
+.donut:hover{filter:brightness(1.25)}
+.mod-more{height:22px;min-width:26px;padding:0 5px;margin-left:2px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:700;color:#a3a6ad}
+.mod-target .ctl{outline:1px dashed rgba(217,199,255,.45);outline-offset:-1px;border-radius:6px}
+.mod-hot .ctl{outline:1px solid #d9c7ff;background:rgba(177,140,254,.08)}
+.mod-ghost{position:absolute;z-index:5;transform:translate(-50%,-50%);pointer-events:none;padding:3px 8px;border-radius:4px;background:#b18cfe;color:#141518;font-size:10px;font-weight:700;letter-spacing:.12em;box-shadow:0 0 0 1px #000,0 4px 12px rgba(0,0,0,.5)}
+.follow-on,.follow-on:hover{background:#b18cfe;color:#141518;box-shadow:0 0 0 1px #000,0 0 8px rgba(177,140,254,.35)}
+.sel-strip{height:22px;font-size:9.5px;letter-spacing:.04em;padding:0 15px 0 7px;white-space:nowrap}
+.strip-ctl{position:absolute;top:1px;height:34px;display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}
+.strip-name{font-size:8.6px;letter-spacing:.15em;color:#8f9299;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.strip-val{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11px;font-weight:700;color:#f0f1f3;white-space:nowrap}
+.row-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.row-name{font-size:11.5px;letter-spacing:.12em;color:#a3a6ad;white-space:nowrap}
+.dim{opacity:.45}
+.slot{min-width:0;display:flex;flex-direction:column;align-items:center}
+.ctl{height:66px;display:flex;align-items:center;justify-content:center}
+.val{height:19px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:14px;font-weight:700;color:#f0f1f3;white-space:nowrap}
+.name{height:16px;margin-top:5px;font-size:11.5px;letter-spacing:.12em;color:#a3a6ad;white-space:nowrap}
+.led{flex:none;width:14px;height:14px;border-radius:50%;border:0;padding:0;background:radial-gradient(circle at 42% 38%,#3a3148,#1e1a26 70%);box-shadow:0 0 0 1.5px #000}
+.led-on{background:radial-gradient(circle at 42% 38%,#f3ecff 0%,#b18cfe 50%,#7c55d6 85%);box-shadow:0 0 0 1.5px #000,0 0 9px 2px rgba(177,140,254,.45)}
+.dice{width:22px;height:22px;border:0;padding:0;background:transparent;color:#6b6e76;display:flex;align-items:center;justify-content:center;border-radius:4px}
+.dice:hover{color:#d9c7ff;background:rgba(255,255,255,.04)}
+.seg{display:inline-flex;gap:2px;padding:2px}
+.seg-v{flex-direction:column}
+.seg-b{border:0;background:transparent;color:#8f9299;font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:5px 7px;border-radius:3px}
+.seg-b:hover{color:#f0f1f3}
+.seg-on,.seg-on:hover{background:#b18cfe;color:#141518}
+.tog{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center}
+.tog-in{width:12px;height:12px;border-radius:2px;background:#25262b}
+.tog-on .tog-in{background:radial-gradient(circle,#f3ecff,#b18cfe 70%);box-shadow:0 0 8px rgba(177,140,254,.6)}
+.drop{height:30px;padding:0 10px 0 12px;display:flex;align-items:center;gap:8px;color:#f0f1f3;font-size:10.5px;font-weight:700;letter-spacing:.08em}
+.tab{flex:1 1 0;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:6px 4px;border-radius:5px;border:1px solid #2a2c31;background:#101114}
+.tab-on{background:#17151d;border-color:rgba(177,140,254,.55);box-shadow:0 0 10px rgba(177,140,254,.12)}
+.tab-pick{flex:1 1 auto;border:0;background:transparent;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 8px;text-align:left}
+.tab-name{font-size:13.5px;font-weight:700;letter-spacing:.14em;color:#a3a6b2}
+.tab-on .tab-name{color:#d9c7ff}
+.tab-range{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px;color:#a3a6ad}
+.mini-name{font-size:11px;letter-spacing:.12em;color:#a3a6ad;display:flex;align-items:center;gap:5px}
+.mini-val{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;font-weight:700;color:#f0f1f3}
+.axis{position:absolute;bottom:0;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11px;color:#8a8d95;transform:translateX(-50%)}
+</style>
+</helmet>
+<div class="fp" style="width: 1260px; height: 726px; position: relative; overflow: hidden; box-sizing: border-box; background: linear-gradient(#1a1b1e, #0d0e10); border-top: 1px solid rgba(74, 77, 84, 0.7); border-bottom: 1px solid rgba(0, 0, 0, 0.8); font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #f0f1f3">
+
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<linearGradient id="kRing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5a5e"></stop><stop offset="1" stop-color="#424246"></stop></linearGradient>
+<linearGradient id="kCore" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a2c"></stop><stop offset="1" stop-color="#232325"></stop></linearGradient>
+<linearGradient id="mRing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5a5e"></stop><stop offset="1" stop-color="#38383c"></stop></linearGradient>
+<linearGradient id="gaSilver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"></stop><stop offset="0.45" stop-color="#aeb2ba"></stop><stop offset="0.55" stop-color="#d9dce1"></stop><stop offset="1" stop-color="#737780"></stop></linearGradient>
+<linearGradient id="gdFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b18cfe" stop-opacity="0.32"></stop><stop offset="1" stop-color="#b18cfe" stop-opacity="0.02"></stop></linearGradient>
+<radialGradient id="screwHead" cx="0.35" cy="0.3" r="0.9"><stop offset="0" stop-color="#7a7d84"></stop><stop offset="1" stop-color="#1c1d20"></stop></radialGradient>
+</defs>
+</svg>
+
+<!-- rack screws -->
+<sc-for list="{{screws}}" as="sc" hint-placeholder-count="4">
+<div style="position: absolute; left: {{sc.x}}px; top: {{sc.y}}px; width: 16px; height: 26px; border-radius: 8px; background: #050506; border: 1px solid #000; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center">
+<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6.2" fill="url(#screwHead)" stroke="#000" stroke-width="1"></circle><path d="M3.3 7H10.7M7 3.3V10.7" stroke="#0d0e10" stroke-width="1.6"></path></svg>
+</div>
+</sc-for>
+
+<!-- header -->
+<div style="position: absolute; left: 44px; right: 44px; top: 16px; height: 64px; display: flex; align-items: center; justify-content: space-between">
+<div style="width: 320px; flex: none; display: flex; flex-direction: column; gap: 6px">
+<div style="position: relative; height: 38px; font-size: 34px; font-weight: 700; letter-spacing: 0.075em; line-height: 38px; white-space: nowrap">
+<span aria-hidden="true" style="position: absolute; left: 16px; top: 0; color: rgba(217, 199, 255, 0.04)">FASE PHUCKER</span>
+<span aria-hidden="true" style="position: absolute; left: 10px; top: 0; color: rgba(217, 199, 255, 0.07)">FASE PHUCKER</span>
+<span aria-hidden="true" style="position: absolute; left: 5.5px; top: 0; color: rgba(217, 199, 255, 0.11)">FASE PHUCKER</span>
+<span aria-hidden="true" style="position: absolute; left: 2.5px; top: 0; color: rgba(217, 199, 255, 0.16)">FASE PHUCKER</span>
+<h1 style="position: absolute; left: 0; top: 0; margin: 0; font-size: 34px; font-weight: 700; letter-spacing: 0.075em; line-height: 38px; background: linear-gradient(180deg, #eadfff 0%, #b18cfe 55%, #7c55d6 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6))">FASE PHUCKER</h1>
+</div>
+<div style="font-size: 11px; letter-spacing: 0.37em; color: #7d8087; padding-left: 3px">ALL-PASS DISPERSER</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 6px">
+<button class="recess" aria-label="Previous preset" style="width: 30px; height: 36px; border-radius: 4px; color: #d9c7ff; display: flex; align-items: center; justify-content: center" onClick="{{prevPreset}}"><svg width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M7 0V10L0 5Z" fill="currentColor"></path></svg></button>
+<button class="recess" style="width: 290px; height: 36px; white-space: nowrap; overflow: hidden; border-radius: 4px; padding: 0 14px; text-align: left; background-color: #0b0b10; background-image: radial-gradient(rgba(177, 140, 254, 0.13) 0.9px, transparent 1.2px); background-size: 4px 4px; font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 22px; font-weight: 700; letter-spacing: 0.06em; color: #e4d8ff; text-shadow: 0 0 6px rgba(177, 140, 254, 0.55)">{{presetName}}</button>
+<button class="recess" aria-label="Next preset" style="width: 30px; height: 36px; border-radius: 4px; color: #d9c7ff; display: flex; align-items: center; justify-content: center" onClick="{{nextPreset}}"><svg width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M1 0V10L8 5Z" fill="currentColor"></path></svg></button>
+<button class="recess" aria-label="Randomize everything" title="Randomize all bands" style="width: 36px; height: 36px; margin-left: 6px; border-radius: 4px; color: #d9c7ff; display: flex; align-items: center; justify-content: center" onClick="{{rollAll}}">
+<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.6"></rect><circle cx="6.5" cy="6.5" r="1.5" fill="currentColor"></circle><circle cx="13.5" cy="6.5" r="1.5" fill="currentColor"></circle><circle cx="10" cy="10" r="1.5" fill="currentColor"></circle><circle cx="6.5" cy="13.5" r="1.5" fill="currentColor"></circle><circle cx="13.5" cy="13.5" r="1.5" fill="currentColor"></circle></svg>
+</button>
+</div>
+
+<div style="width: 84px; flex: none; display: flex; justify-content: flex-end">
+<svg role="img" aria-label="GA" width="84" height="51" viewBox="3 0 58 35" style="filter: drop-shadow(0 1.5px 2px rgba(0, 0, 0, 0.75))"><path fill="url(#gaSilver)" fill-rule="nonzero" d="M20.0 9.5 L24.9 5.7 L25.4 6.1 L20.6 9.9ZM19.3 8.9 L24.2 5.0 L24.9 5.7 L20.0 9.5ZM18.4 8.1 L23.3 4.3 L24.2 5.0 L19.3 8.9ZM17.5 7.4 L22.4 3.6 L23.3 4.3 L18.4 8.1ZM16.5 6.8 L21.4 3.0 L22.4 3.6 L17.5 7.4ZM15.6 6.4 L20.4 2.6 L21.4 3.0 L16.5 6.8ZM14.6 6.2 L19.5 2.4 L20.4 2.6 L15.6 6.4ZM13.6 6.1 L18.4 2.3 L19.5 2.4 L14.6 6.2ZM12.5 6.1 L17.4 2.3 L18.4 2.3 L13.6 6.1ZM11.4 6.3 L16.3 2.4 L17.4 2.3 L12.5 6.1ZM10.5 6.5 L15.3 2.7 L16.3 2.4 L11.4 6.3ZM9.6 6.9 L14.4 3.1 L15.3 2.7 L10.5 6.5ZM8.7 7.5 L13.6 3.6 L14.4 3.1 L9.6 6.9ZM8.7 7.5 L13.6 3.6 L12.9 4.4 L8.0 8.2ZM8.0 8.2 L12.9 4.4 L12.2 5.2 L7.3 9.0ZM7.3 9.0 L12.2 5.2 L11.5 6.1 L6.6 9.9ZM6.6 9.9 L11.5 6.1 L10.9 7.1 L6.1 10.9ZM6.1 10.9 L10.9 7.1 L10.4 8.1 L5.6 11.9ZM5.6 11.9 L10.4 8.1 L10.0 9.1 L5.1 13.0ZM5.1 13.0 L10.0 9.1 L9.6 10.3 L4.8 14.1ZM4.8 14.1 L9.6 10.3 L9.3 11.5 L4.5 15.3ZM4.5 15.3 L9.3 11.5 L9.1 12.7 L4.2 16.5ZM4.2 16.5 L9.1 12.7 L9.0 13.9 L4.1 17.7ZM4.1 17.7 L9.0 13.9 L8.9 15.1 L4.1 18.9ZM4.1 18.9 L8.9 15.1 L9.0 16.3 L4.1 20.1ZM4.1 20.1 L9.0 16.3 L9.1 17.5 L4.2 21.3ZM4.2 21.3 L9.1 17.5 L9.3 18.7 L4.4 22.5ZM4.4 22.5 L9.3 18.7 L9.6 19.9 L4.7 23.7ZM4.7 23.7 L9.6 19.9 L10.0 21.0 L5.1 24.8ZM5.1 24.8 L10.0 21.0 L10.4 22.1 L5.6 25.9ZM5.6 25.9 L10.4 22.1 L11.1 23.2 L6.2 27.0ZM6.2 27.0 L11.1 23.2 L11.8 24.2 L6.9 28.0ZM6.9 28.0 L11.8 24.2 L12.7 25.2 L7.8 29.1ZM7.8 29.1 L12.7 25.2 L13.6 26.2 L8.7 30.0ZM8.7 30.0 L13.6 26.2 L14.5 27.0 L9.6 30.8ZM9.6 30.8 L14.5 27.0 L15.4 27.6 L10.6 31.4ZM10.6 31.4 L15.4 27.6 L16.4 28.0 L11.5 31.8ZM11.5 31.8 L16.4 28.0 L17.4 28.3 L12.5 32.1ZM12.5 32.1 L17.4 28.3 L18.4 28.5 L13.6 32.3ZM13.6 32.3 L18.4 28.5 L19.5 28.5 L14.6 32.3ZM14.6 32.3 L19.5 28.5 L20.5 28.4 L15.6 32.2ZM15.6 32.2 L20.5 28.4 L21.4 28.1 L16.6 31.9ZM16.6 31.9 L21.4 28.1 L22.4 27.6 L17.5 31.4ZM18.5 30.6 L23.4 26.8 L22.4 27.6 L17.5 31.4ZM19.4 29.7 L24.3 25.9 L23.4 26.8 L18.5 30.6ZM20.3 28.8 L25.2 24.9 L24.3 25.9 L19.4 29.7ZM21.0 28.0 L25.9 24.1 L25.2 24.9 L20.3 28.8ZM21.6 27.4 L26.4 23.6 L25.9 24.1 L21.0 28.0ZM21.6 25.4 L26.4 21.6 L26.4 23.6 L21.6 27.4ZM21.6 23.4 L26.4 19.6 L26.4 21.6 L21.6 25.4ZM21.6 21.4 L26.4 17.6 L26.4 19.6 L21.6 23.4ZM21.6 19.4 L26.4 15.6 L26.4 17.6 L21.6 21.4ZM12.1 19.4 L16.9 15.6 L19.6 15.6 L14.7 19.4ZM14.7 19.4 L19.6 15.6 L22.2 15.6 L17.3 19.4ZM17.3 19.4 L22.2 15.6 L24.8 15.6 L19.9 19.4ZM19.9 19.4 L24.8 15.6 L27.4 15.6 L22.6 19.4ZM16.6 4.9 L21.4 1.1 L22.9 2.1 L18.1 5.9ZM18.1 5.9 L22.9 2.1 L24.4 3.1 L19.6 6.9ZM19.6 6.9 L24.4 3.1 L25.9 4.1 L21.1 7.9ZM21.1 7.9 L25.9 4.1 L27.4 5.1 L22.6 8.9ZM45.8 5.9 L50.7 2.1 L51.4 1.6 L46.6 5.4ZM44.6 6.5 L49.5 2.7 L50.7 2.1 L45.8 5.9ZM43.3 7.2 L48.2 3.4 L49.5 2.7 L44.6 6.5ZM42.0 8.1 L46.9 4.2 L48.2 3.4 L43.3 7.2ZM40.7 9.0 L45.5 5.1 L46.9 4.2 L42.0 8.1ZM40.7 9.0 L45.5 5.1 L44.4 6.1 L39.6 9.9ZM39.6 9.9 L44.4 6.1 L43.5 7.1 L38.6 10.9ZM38.6 10.9 L43.5 7.1 L42.6 8.2 L37.7 12.0ZM37.7 12.0 L42.6 8.2 L41.7 9.4 L36.8 13.2ZM36.8 13.2 L41.7 9.4 L41.0 10.6 L36.1 14.4ZM36.1 14.4 L41.0 10.6 L40.4 11.9 L35.5 15.7ZM35.5 15.7 L40.4 11.9 L39.9 13.1 L35.1 16.9ZM35.1 16.9 L39.9 13.1 L39.7 14.4 L34.8 18.2ZM34.8 18.2 L39.7 14.4 L39.6 15.7 L34.7 19.5ZM34.7 19.5 L39.6 15.7 L39.7 17.0 L34.8 20.8ZM34.8 20.8 L39.7 17.0 L39.8 18.3 L34.9 22.1ZM34.9 22.1 L39.8 18.3 L40.1 19.5 L35.2 23.4ZM35.2 23.4 L40.1 19.5 L40.4 20.6 L35.6 24.4ZM35.6 24.4 L40.4 20.6 L40.9 21.5 L36.0 25.3ZM36.0 25.3 L40.9 21.5 L41.4 22.4 L36.6 26.2ZM36.6 26.2 L41.4 22.4 L42.1 23.2 L37.2 27.0ZM37.2 27.0 L42.1 23.2 L42.8 23.8 L37.9 27.6ZM37.9 27.6 L42.8 23.8 L43.6 24.3 L38.7 28.1ZM38.7 28.1 L43.6 24.3 L44.4 24.6 L39.6 28.4ZM39.6 28.4 L44.4 24.6 L45.4 24.6 L40.5 28.4ZM40.5 28.4 L45.4 24.6 L46.5 24.3 L41.6 28.1ZM41.6 28.1 L46.5 24.3 L47.7 23.8 L42.8 27.7ZM42.8 27.7 L47.7 23.8 L48.8 23.3 L43.9 27.1ZM43.9 27.1 L48.8 23.3 L49.8 22.9 L44.9 26.7ZM44.9 26.7 L49.8 22.9 L50.4 22.6 L45.6 26.4ZM51.6 7.9 L56.4 4.1 L56.4 6.8 L51.5 10.7ZM51.5 10.7 L56.4 6.8 L56.3 10.8 L51.4 14.6ZM51.4 14.6 L56.3 10.8 L56.2 15.5 L51.3 19.3ZM51.3 19.3 L56.2 15.5 L56.2 20.1 L51.3 23.9ZM51.3 23.9 L56.2 20.1 L56.2 24.2 L51.4 28.0ZM51.4 28.0 L56.2 24.2 L56.4 27.1 L51.6 30.9ZM51.6 30.9 L56.4 27.1 L56.9 28.7 L52.0 32.5ZM52.0 32.5 L56.9 28.7 L57.5 29.4 L52.6 33.2ZM52.6 33.2 L57.5 29.4 L58.2 29.5 L53.3 33.3ZM53.3 33.3 L58.2 29.5 L58.9 29.4 L54.0 33.2ZM54.0 33.2 L58.9 29.4 L59.5 29.1 L54.6 32.9ZM54.6 32.9 L59.5 29.1 L59.9 29.1 L55.1 32.9ZM46.6 5.4 L51.4 1.6 L52.7 2.2 L47.8 6.0ZM47.8 6.0 L52.7 2.2 L53.9 2.8 L49.1 6.7ZM49.1 6.7 L53.9 2.8 L55.2 3.5 L50.3 7.3ZM50.3 7.3 L55.2 3.5 L56.4 4.1 L51.6 7.9ZM38.6 18.4 L43.4 14.6 L46.7 14.6 L41.8 18.4ZM41.8 18.4 L46.7 14.6 L49.9 14.6 L45.1 18.4ZM45.1 18.4 L49.9 14.6 L53.2 14.6 L48.3 18.4ZM48.3 18.4 L53.2 14.6 L56.4 14.6 L51.6 18.4Z"></path></svg>
+</div>
+</div>
+
+<!-- band display + tabs -->
+<section style="position: absolute; left: 44px; right: 44px; top: 104px">
+<div class="sec-head"><span class="sec-title">BANDS</span><span style="flex: 1"></span>
+<label class="sel-wrap"><select class="sel sel-hhd sel-hdr" aria-label="Number of bands" value="{{countVal}}" onChange="{{setCount}}"><option value="1">SINGLE</option><option value="2">2 BANDS</option><option value="3">3 BANDS</option></select><svg class="sel-caret" style="right: 8px" width="7" height="9" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg></label></div>
+<div style="display: flex; align-items: stretch; height: 112px; margin-top: 14px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+<div class="{{t.cls}}">
+<div style="display: flex; align-items: center; gap: 8px; padding: 0 2px 0 6px">
+<button class="{{t.ledCls}}" title="Band on/off" aria-label="{{t.onLabel}}" onClick="{{t.toggleOn}}"></button>
+<button class="tab-pick" style="flex: 1 1 auto; flex-direction: row; align-items: baseline; justify-content: space-between; padding: 2px 2px" onClick="{{t.pick}}"><span class="tab-name">{{t.name}}</span><span style="font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; font-weight: 700; color: #f0f1f3">{{t.stagesText}}</span></button>
+<button class="{{t.soloCls}}" title="Solo" aria-label="{{t.soloLabel}}" onClick="{{t.toggleSolo}}">S</button>
+</div>
+<button class="tab-pick" style="width: 100%; padding: 0 6px; gap: 3px" onClick="{{t.pick}}">
+<span class="tab-range">{{t.range}}</span>
+<svg width="100%" height="30" viewBox="0 0 240 30" preserveAspectRatio="none" aria-hidden="true" style="margin-top: 2px"><path d="M0 15H240" stroke="#24262b" stroke-width="1"></path><path d="{{t.chirp2}}" fill="none" stroke="#5b4a86" stroke-width="1" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path><path d="{{t.chirp}}" fill="none" stroke="{{t.stroke}}" stroke-width="1.3" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path></svg>
+</button>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 4px 0 6px">
+<label class="sel-wrap">
+<select class="sel sel-hhd sel-hdr" aria-label="{{t.stereoLabel}}" value="{{t.stereo}}" onChange="{{t.setStereo}}"><option value="LR">L / R</option><option value="MS">M / S</option></select>
+<svg class="sel-caret" width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg>
+</label>
+<span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #a3a6ad; white-space: nowrap">{{t.linkText}}</span>
+</div>
+</div>
+<sc-if value="{{t.hasSplit}}" hint-placeholder-val="{{true}}">
+<div style="flex: none; width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+<span class="recess" title="Drag left/right to move the crossover. Double-click: default." style="font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; font-weight: 700; color: #f0f1f3; padding: 6px 8px; white-space: nowrap; cursor: ew-resize; user-select: none" onMouseDown="{{t.splitDown}}" onDoubleClick="{{t.splitReset}}">{{t.split}}</span>
+<span class="name" style="margin: 0; height: auto">◂ SPLIT ▸</span>
+</div>
+</sc-if>
+</sc-for>
+</div>
+</section>
+
+<!-- row 1: disperse + envelope follower -->
+<div style="position: absolute; left: 44px; right: 44px; top: 290px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr))">
+<section class="sec-l" style="grid-column: 1 / span 7">
+<div class="sec-head"><span class="sec-title">DISPERSE</span><span style="flex: 1"></span>
+<label class="sel-wrap"><select class="sel sel-hhd sel-hdr" aria-label="Disperse channel" value="{{chD.val}}" onChange="{{chD.set}}"><option value="L">LINK</option><option value="0">{{chD.n0}}</option><option value="1">{{chD.n1}}</option></select><svg class="sel-caret" style="right: 8px" width="7" height="9" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg></label>
+<button class="dice" aria-label="Randomize Disperse" onClick="{{rollD}}"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect><circle cx="6.5" cy="6.5" r="1.6" fill="currentColor"></circle><circle cx="13.5" cy="6.5" r="1.6" fill="currentColor"></circle><circle cx="10" cy="10" r="1.6" fill="currentColor"></circle><circle cx="6.5" cy="13.5" r="1.6" fill="currentColor"></circle><circle cx="13.5" cy="13.5" r="1.6" fill="currentColor"></circle></svg></button>
+<button class="{{ledD}}" aria-label="Disperse on/off" onClick="{{toggleD}}"></button></div>
+<div class="{{bodyD}}">
+<div class="slot"><div class="ctl">
+<div class="recess" style="position: relative; width: 84px; height: 24px; box-sizing: border-box; display: flex; align-items: center; padding: 0 15px 0 3px">
+<span title="Drag up/down: single stages. Arrows: double / halve." style="flex: 1; align-self: stretch; display: flex; align-items: center; justify-content: center; cursor: ns-resize; user-select: none; font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 700; color: #f0f1f3" onMouseDown="{{stagesDrag}}">{{bD.stages}}</span>
+<svg style="position: absolute; right: 6px; top: 50%; margin-top: -5px; pointer-events: none" width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg>
+<button aria-label="Double the stages" style="position: absolute; right: 0; top: 0; width: 22px; height: 12px; border: 0; background: transparent; padding: 0" onClick="{{stagesUp}}"></button>
+<button aria-label="Halve the stages" style="position: absolute; right: 0; bottom: 0; width: 22px; height: 12px; border: 0; background: transparent; padding: 0" onClick="{{stagesDown}}"></button>
+</div>
+</div><div class="val"> </div><div class="name">STAGES</div></div>
+<div class="slot"><div class="ctl"><label class="sel-wrap">
+<select class="sel sel-hhd" aria-label="All-pass mode" value="{{bD.mode}}" onChange="{{setMode}}"><option value="behaved">BEHAVED</option><option value="unhinged">UNHINGED</option></select>
+<svg class="sel-caret" width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg>
+</label></div><div class="val"> </div><div class="name">MODE</div></div>
+<div class="slot"><div class="ctl"><button class="{{jitterCls}}" aria-label="Per-stage jitter" onClick="{{toggleJitter}}"><span class="tog-in"></span></button></div><div class="val"> </div><div class="name">JITTER</div></div>
+<sc-for list="{{kD}}" as="k" hint-placeholder-count="4">
+<div class="{{k.slotCls}}" data-mod="{{k.id}}"><div class="ctl" style="position: relative">
+<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+<circle cx="11.3" cy="52.7" r="1.95" fill="#5d6068"></circle><circle cx="32" cy="2.8" r="1.95" fill="#9a9da6"></circle><circle cx="52.7" cy="52.7" r="1.95" fill="#5d6068"></circle>
+<circle cx="32" cy="34.4" r="22.8" fill="#000" opacity="0.55" style="filter: blur(3px)"></circle>
+<circle cx="32" cy="32" r="21" fill="url(#kRing)" stroke="#000" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="19.9" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="17.1" fill="url(#kCore)" stroke="rgba(0,0,0,0.5)" stroke-width="1.2"></circle>
+<line x1="{{k.sx1}}" y1="{{k.sy1}}" x2="{{k.sx2}}" y2="{{k.sy2}}" stroke="rgba(0,0,0,0.5)" stroke-width="5.1" stroke-linecap="round"></line>
+<line x1="{{k.x1}}" y1="{{k.y1}}" x2="{{k.x2}}" y2="{{k.y2}}" stroke="#b18cfe" stroke-width="3.9" stroke-linecap="round"></line>
+<path d="{{k.arc}}" fill="none" stroke="#e6d8ff" stroke-width="2.4" stroke-linecap="round" opacity="0.9"></path>
+</svg>
+</div><div class="val">{{k.text}}</div><div class="name">{{k.label}}</div></div>
+</sc-for>
+</div>
+</section>
+
+<section class="sec-r" style="grid-column: 8 / span 5">
+<div class="sec-head"><span class="sec-title" title="Envelope Follower">ENV FOLLOWER</span><span style="flex: 1"></span>
+<button class="recess mod-src" title="Drag onto any knob in Disperse, Distortion or Feedback to modulate it" aria-label="Drag the Env Follower onto a knob" onMouseDown="{{srcDown}}"><svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><circle cx="3" cy="2" r="1.1"></circle><circle cx="7" cy="2" r="1.1"></circle><circle cx="3" cy="6" r="1.1"></circle><circle cx="7" cy="6" r="1.1"></circle><circle cx="3" cy="10" r="1.1"></circle><circle cx="7" cy="10" r="1.1"></circle></svg></button>
+<span class="donuts"><sc-for list="{{modList}}" as="m" hint-placeholder-count="2">
+<button class="donut" title="{{m.title}}. Drag up/down: depth. Double-click: remove." aria-label="{{m.title}}" onMouseDown="{{m.down}}" onDoubleClick="{{m.clear}}" onMouseEnter="{{m.enter}}" onMouseLeave="{{m.leave}}"><svg width="22" height="22" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="#2a2c31" stroke-width="3.6"></circle><path d="{{m.ring}}" fill="none" stroke="#b18cfe" stroke-width="3.6"></path><circle cx="10" cy="10" r="4.2" fill="#0c0d0f"></circle><line x1="10" y1="1.5" x2="10" y2="5" stroke="#5d6068" stroke-width="1"></line></svg></button>
+</sc-for><sc-if value="{{modMore.on}}" hint-placeholder-val="{{false}}"><button class="recess mod-more" title="Show the other destinations" onClick="{{modMore.next}}">{{modMore.text}}</button></sc-if></span>
+<label class="sel-wrap"><select class="sel sel-hhd sel-hdr" aria-label="Envelope Follower channel" value="{{chF.val}}" onChange="{{chF.set}}"><option value="L">LINK</option><option value="0">{{chF.n0}}</option><option value="1">{{chF.n1}}</option></select><svg class="sel-caret" style="right: 8px" width="7" height="9" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg></label>
+</div>
+<div class="{{bodyF}}">
+<sc-for list="{{kF}}" as="k" hint-placeholder-count="3">
+<div class="{{k.slotCls}}" data-mod="{{k.id}}"><div class="ctl" style="position: relative">
+<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+<circle cx="11.3" cy="52.7" r="1.95" fill="#5d6068"></circle><circle cx="32" cy="2.8" r="1.95" fill="#9a9da6"></circle><circle cx="52.7" cy="52.7" r="1.95" fill="#5d6068"></circle>
+<circle cx="32" cy="34.4" r="22.8" fill="#000" opacity="0.55" style="filter: blur(3px)"></circle>
+<circle cx="32" cy="32" r="21" fill="url(#kRing)" stroke="#000" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="19.9" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="17.1" fill="url(#kCore)" stroke="rgba(0,0,0,0.5)" stroke-width="1.2"></circle>
+<line x1="{{k.sx1}}" y1="{{k.sy1}}" x2="{{k.sx2}}" y2="{{k.sy2}}" stroke="rgba(0,0,0,0.5)" stroke-width="5.1" stroke-linecap="round"></line>
+<line x1="{{k.x1}}" y1="{{k.y1}}" x2="{{k.x2}}" y2="{{k.y2}}" stroke="#b18cfe" stroke-width="3.9" stroke-linecap="round"></line>
+<path d="{{k.arc}}" fill="none" stroke="#e6d8ff" stroke-width="2.4" stroke-linecap="round" opacity="0.9"></path>
+</svg>
+</div><div class="val">{{k.text}}</div><div class="name">{{k.label}}</div></div>
+</sc-for>
+</div>
+</section>
+</div>
+
+<!-- row 2: feedback + dirt + band -->
+<div style="position: absolute; left: 44px; right: 44px; top: 474px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr))">
+<section class="sec-r" style="grid-column: 8 / span 5; grid-row: 1">
+<div class="sec-head"><span class="sec-title">FEEDBACK</span><span style="flex: 1"></span>
+<label class="sel-wrap"><select class="sel sel-hhd sel-hdr" aria-label="Feedback channel" value="{{chFb.val}}" onChange="{{chFb.set}}"><option value="L">LINK</option><option value="0">{{chFb.n0}}</option><option value="1">{{chFb.n1}}</option></select><svg class="sel-caret" style="right: 8px" width="7" height="9" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg></label>
+<button class="dice" aria-label="Randomize Feedback" onClick="{{rollFb}}"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect><circle cx="6.5" cy="6.5" r="1.6" fill="currentColor"></circle><circle cx="13.5" cy="6.5" r="1.6" fill="currentColor"></circle><circle cx="10" cy="10" r="1.6" fill="currentColor"></circle><circle cx="6.5" cy="13.5" r="1.6" fill="currentColor"></circle><circle cx="13.5" cy="13.5" r="1.6" fill="currentColor"></circle></svg></button>
+<button class="{{ledFb}}" aria-label="Feedback on/off" onClick="{{toggleFb}}"></button></div>
+<div class="{{bodyFb}}">
+<div class="slot"><div class="ctl"><button class="{{invCls}}" aria-label="Invert feedback polarity" onClick="{{toggleInv}}"><span class="tog-in"></span></button></div><div class="val"> </div><div class="name">INVERT</div></div>
+<sc-for list="{{kFb}}" as="k" hint-placeholder-count="4">
+<div class="{{k.slotCls}}" data-mod="{{k.id}}"><div class="ctl" style="position: relative">
+<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+<circle cx="11.3" cy="52.7" r="1.95" fill="#5d6068"></circle><circle cx="32" cy="2.8" r="1.95" fill="#9a9da6"></circle><circle cx="52.7" cy="52.7" r="1.95" fill="#5d6068"></circle>
+<circle cx="32" cy="34.4" r="22.8" fill="#000" opacity="0.55" style="filter: blur(3px)"></circle>
+<circle cx="32" cy="32" r="21" fill="url(#kRing)" stroke="#000" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="19.9" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="17.1" fill="url(#kCore)" stroke="rgba(0,0,0,0.5)" stroke-width="1.2"></circle>
+<line x1="{{k.sx1}}" y1="{{k.sy1}}" x2="{{k.sx2}}" y2="{{k.sy2}}" stroke="rgba(0,0,0,0.5)" stroke-width="5.1" stroke-linecap="round"></line>
+<line x1="{{k.x1}}" y1="{{k.y1}}" x2="{{k.x2}}" y2="{{k.y2}}" stroke="#b18cfe" stroke-width="3.9" stroke-linecap="round"></line>
+<path d="{{k.arc}}" fill="none" stroke="#e6d8ff" stroke-width="2.4" stroke-linecap="round" opacity="0.9"></path>
+</svg>
+</div><div class="val">{{k.text}}</div><div class="name">{{k.label}}</div></div>
+</sc-for></div>
+</section>
+
+<section class="sec-l" style="grid-column: 1 / span 7; grid-row: 1">
+<div class="sec-head"><span class="sec-title">DISTORTION</span><span style="flex: 1"></span>
+<label class="sel-wrap"><select class="sel sel-hhd sel-hdr" aria-label="Distortion channel" value="{{chDirt.val}}" onChange="{{chDirt.set}}"><option value="L">LINK</option><option value="0">{{chDirt.n0}}</option><option value="1">{{chDirt.n1}}</option></select><svg class="sel-caret" style="right: 8px" width="7" height="9" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg></label>
+<button class="dice" aria-label="Randomize Distortion" onClick="{{rollDirt}}"><svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="2" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"></rect><circle cx="6.5" cy="6.5" r="1.6" fill="currentColor"></circle><circle cx="13.5" cy="6.5" r="1.6" fill="currentColor"></circle><circle cx="10" cy="10" r="1.6" fill="currentColor"></circle><circle cx="6.5" cy="13.5" r="1.6" fill="currentColor"></circle><circle cx="13.5" cy="13.5" r="1.6" fill="currentColor"></circle></svg></button>
+<button class="{{ledDirt}}" aria-label="Distortion on/off" onClick="{{toggleDirt}}"></button></div>
+<div class="{{bodyDirt}}">
+<div class="slot"><div class="ctl"><label class="sel-wrap">
+<select class="sel sel-hhd" aria-label="Distortion type" title="{{distHint}}" value="{{bDirt.dist}}" onChange="{{setDist}}"><option value="noise">NOISE</option><option value="soft">SATURATE</option><option value="hard">CLIP</option><option value="fold">FOLD</option><option value="rect">RECTIFY</option><option value="crush">CRUSH</option></select>
+<svg class="sel-caret" width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg>
+</label></div><div class="val"> </div><div class="name">TYPE</div></div>
+<div class="slot"><div class="ctl"><label class="sel-wrap">
+<select class="sel sel-hhd" aria-label="Distortion before or after the all-pass chain" value="{{orderVal}}" onChange="{{setOrder}}"><option value="pre">PRE</option><option value="post">POST</option></select>
+<svg class="sel-caret" width="8" height="10" viewBox="0 0 8 10" aria-hidden="true"><path d="M0 4L4 0L8 4ZM0 6L4 10L8 6Z" fill="#a3a6ad"></path></svg>
+</label></div><div class="val"> </div><div class="name">ORDER</div></div>
+<sc-for list="{{kDirt}}" as="k" hint-placeholder-count="5">
+<div class="{{k.slotCls}}" data-mod="{{k.id}}"><div class="ctl" style="position: relative">
+<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+<circle cx="11.3" cy="52.7" r="1.95" fill="#5d6068"></circle><circle cx="32" cy="2.8" r="1.95" fill="#9a9da6"></circle><circle cx="52.7" cy="52.7" r="1.95" fill="#5d6068"></circle>
+<circle cx="32" cy="34.4" r="22.8" fill="#000" opacity="0.55" style="filter: blur(3px)"></circle>
+<circle cx="32" cy="32" r="21" fill="url(#kRing)" stroke="#000" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="19.9" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"></circle>
+<circle cx="32" cy="32" r="17.1" fill="url(#kCore)" stroke="rgba(0,0,0,0.5)" stroke-width="1.2"></circle>
+<line x1="{{k.sx1}}" y1="{{k.sy1}}" x2="{{k.sx2}}" y2="{{k.sy2}}" stroke="rgba(0,0,0,0.5)" stroke-width="5.1" stroke-linecap="round"></line>
+<line x1="{{k.x1}}" y1="{{k.y1}}" x2="{{k.x2}}" y2="{{k.y2}}" stroke="#b18cfe" stroke-width="3.9" stroke-linecap="round"></line>
+<path d="{{k.arc}}" fill="none" stroke="#e6d8ff" stroke-width="2.4" stroke-linecap="round" opacity="0.9"></path>
+</svg>
+</div><div class="val">{{k.text}}</div><div class="name">{{k.label}}</div></div>
+</sc-for>
+</div>
+</section>
+</div>
+
+<!-- bottom strip (shared GA framework, unchanged from Hyper! Hyper! Dimension) -->
+<!-- every position below is Hyper! Hyper! Dimension's MainPanel layout (kOutX, kSetX, kCorX, kSd*) at 952 px, scaled as one piece to the window width -->
+<div style="position: absolute; left: 44px; top: 658px; width: 952px; height: 36px; transform: scale(1.2311); transform-origin: 0 0">
+<div class="inset" style="position: absolute; left: 0; top: 0; width: 272px; height: 36px; box-sizing: border-box">
+<button class="recess" aria-label="Bypass" style="position: absolute; left: 11px; top: 6px; width: 23px; height: 23px; padding: 0; display: flex; align-items: center; justify-content: center; color: {{powerColor}}" onClick="{{toggleBypass}}"><svg width="14" height="14" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2V9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path><path d="M5.2 4.6A6 6 0 1 0 12.8 4.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+<div class="strip-ctl" style="left: 46px; width: 99px">
+<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><path d="{{dw.track}}" fill="none" stroke="#3a3d44" stroke-width="2" stroke-linecap="round"></path><path d="{{dw.value}}" fill="none" stroke="#b18cfe" stroke-opacity="0.85" stroke-width="2" stroke-linecap="round"></path><circle cx="14" cy="14" r="8.9" fill="url(#mRing)" stroke="#000" stroke-width="1"></circle><line x1="{{dw.x1}}" y1="{{dw.y1}}" x2="{{dw.x2}}" y2="{{dw.y2}}" stroke="#b18cfe" stroke-width="2" stroke-linecap="round"></line></svg>
+<div><div class="strip-name">DRY/WET <svg width="7" height="8" viewBox="0 0 5 6" aria-hidden="true"><path d="M1.25 2.8V1.9A1.25 1.25 0 0 1 3.75 1.9V2.8" fill="none" stroke="#b18cfe" stroke-width="0.8"></path><rect x="0.5" y="2.75" width="4" height="3" rx="0.5" fill="#b18cfe"></rect></svg></div><div class="strip-val">100 %</div></div>
+</div>
+<div class="strip-ctl" style="left: 150px; width: 109px">
+<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><path d="{{bm.track}}" fill="none" stroke="#3a3d44" stroke-width="2" stroke-linecap="round"></path><path d="{{bm.value}}" fill="none" stroke="#b18cfe" stroke-opacity="0.85" stroke-width="2" stroke-linecap="round"></path><circle cx="14" cy="14" r="8.9" fill="url(#mRing)" stroke="#000" stroke-width="1"></circle><line x1="{{bm.x1}}" y1="{{bm.y1}}" x2="{{bm.x2}}" y2="{{bm.y2}}" stroke="#b18cfe" stroke-width="2" stroke-linecap="round"></line></svg>
+<div><div class="strip-name">BASS MONO</div><div class="strip-val">Off</div></div>
+</div>
+</div>
+<div class="inset" style="position: absolute; left: 277px; top: 0; width: 234px; height: 36px; box-sizing: border-box">
+<label class="sel-wrap" style="position: absolute; left: 10px; top: 7px"><select class="sel sel-strip" aria-label="Oversampling" style="width: 48px"><option>1X</option><option selected>2X</option><option>4X</option><option>8X</option></select><svg class="sel-caret" style="right: 6px; margin-top: -2px" width="6" height="4" viewBox="0 0 8 5" aria-hidden="true"><path d="M0 0H8L4 5Z" fill="#a3a6ad"></path></svg></label>
+<label class="sel-wrap" style="position: absolute; left: 62px; top: 7px"><select class="sel sel-strip" aria-label="Anti-alias filter" style="width: 107px"><option selected>LINEAR PHASE</option><option>LOW LATENCY</option></select><svg class="sel-caret" style="right: 6px; margin-top: -2px" width="6" height="4" viewBox="0 0 8 5" aria-hidden="true"><path d="M0 0H8L4 5Z" fill="#a3a6ad"></path></svg></label>
+<label class="sel-wrap" style="position: absolute; left: 173px; top: 7px"><select class="sel sel-strip" aria-label="Window size" style="width: 53px"><option>75%</option><option selected>100%</option><option>125%</option><option>150%</option><option>175%</option><option>200%</option></select><svg class="sel-caret" style="right: 6px; margin-top: -2px" width="6" height="4" viewBox="0 0 8 5" aria-hidden="true"><path d="M0 0H8L4 5Z" fill="#a3a6ad"></path></svg></label>
+</div>
+<div class="inset" style="position: absolute; left: 516px; top: 0; width: 436px; height: 36px; box-sizing: border-box">
+<div class="strip-ctl" style="left: 9px; width: 279px; gap: 6px">
+<span class="strip-name" style="flex: none">CORRELATION</span>
+<span style="flex: none; font-size: 8.5px; color: #6f727a">-1</span>
+<div class="recess" style="flex: 1 1 auto; height: 12px; position: relative">
+<div style="position: absolute; left: 50%; top: 2px; bottom: 2px; width: 1px; background: #3a3d44"></div>
+<div style="position: absolute; left: 50%; width: 21%; top: 2px; bottom: 2px; background: #7c55d6; border-radius: 1px"></div>
+<div style="position: absolute; left: 71%; top: 0; bottom: 0; width: 2px; background: #d9c7ff"></div>
+</div>
+<span style="flex: none; font-size: 8.5px; color: #6f727a">+1</span>
+<span class="strip-val" style="flex: none; width: 40px; margin-right: 18px; text-align: right">+0.42</span>
+</div>
+<button class="strip-ctl" style="left: 292px; width: 107px; border: 0; background: transparent; padding: 0; justify-content: space-between" aria-label="Phase Protect on/off" onClick="{{toggleProtect}}"><span class="strip-name">PHASE PROTECT</span><span class="{{protectCls}}" style="flex: none; width: 9px; height: 9px"></span></button>
+<button class="recess" aria-label="Open goniometer" style="position: absolute; left: 404px; top: 6px; width: 23px; height: 23px; padding: 0; display: flex; align-items: center; justify-content: center; color: #8f9299"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1L15 8L8 15L1 8Z" fill="none" stroke="currentColor" stroke-width="1.4"></path><path d="M8 4L12 8L8 12L4 8Z" fill="none" stroke="currentColor" stroke-width="1.1"></path></svg></button>
+</div>
+</div>
+
+<sc-if value="{{ghost.on}}" hint-placeholder-val="{{false}}">
+<div class="mod-ghost" style="left: {{ghost.x}}px; top: {{ghost.y}}px">ENV</div>
+</sc-if>
+<svg width="22" height="22" viewBox="0 0 22 22" style="position: absolute; right: 3px; bottom: 3px" aria-hidden="true"><path d="M2 21L21 2M9 21L21 9M15 21L21 15" stroke="#b18cfe" stroke-opacity="0.7" stroke-width="1.6"></path></svg>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1260,"height":726}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const band = (o) => Object.assign({ stages: 64, freq: 400, pinch: 50, spread: 30, mode: 'behaved', jitter: false, gain: 0, env: 0, atk: 5, rel: 150, fb: 0, tone: 50, dist: 'noise', drive: 30, bias: 0, phat: 0, dtone: 50, mix: 100, dmix: 100, hold: 20, fbMix: 100, post: false, fbTime: 5, inv: false, onD: true, onF: true, onFb: true, onDirt: true }, o);
+    // every band has two channels (L/R or M/S). Each section is linked (both channels share its values)
+    // or unlinked with its own channel being edited. mods = knobs the Env Follower drives, with their depth in %.
+    const lk = { link: true, edit: 0 }, un = { link: false, edit: 0 };
+    const mk = (o, o2, meta) => Object.assign({ stereo: 'MS', on: true, solo: false,
+      sec: o2 ? { d: un, f: lk, fb: un, dirt: un } : { d: lk, f: lk, fb: lk, dirt: lk },
+      mods: { 'd.freq': 60 }, ch: [band(o), band(o2 || o)] }, meta);
+    this.state = {
+      count: 3, sel: 1, preset: 0, xo: { 2: [800], 3: [180, 2400] }, bypass: false, protect: true, lockDw: true, lockBm: false,
+      bands: [
+        mk({ stages: 64, freq: 90, pinch: 40, spread: 20, env: 30, atk: 5, rel: 120, fb: 10, tone: 45, phat: 35 }),
+        mk({ stages: 256, freq: 900, pinch: 65, spread: 45, mode: 'unhinged', jitter: true, gain: 6, env: -40, atk: 1, rel: 250, fb: 35, tone: 60, dist: 'fold', drive: 45, bias: 20, phat: 15, post: true },
+           { stages: 32, freq: 1400, pinch: 30, spread: 80, env: 20, atk: 3, rel: 400, fb: 60, tone: 30, dist: 'soft', drive: 10, bias: 0, phat: 0 }, { mods: { 'd.freq': 60, 'fb.fb': 40 } }),
+        mk({ stages: 16, freq: 6000, pinch: 30, spread: 70, env: 55, atk: 0.3, rel: 60, fb: 0, onFb: false, dist: 'noise', drive: 35, bias: -15 }, null, { stereo: 'LR' })
+      ]
+    };
+  }
+  chNames(bd) { return bd.stereo === 'MS' ? ['MID', 'SIDE'] : ['LEFT', 'RIGHT']; }
+  fields(key) {
+    return { d: ['stages', 'freq', 'pinch', 'spread', 'mode', 'jitter', 'dmix', 'onD'], f: ['gain', 'env', 'atk', 'hold', 'rel', 'onF'],
+      fb: ['fb', 'fbTime', 'tone', 'inv', 'fbMix', 'onFb'], dirt: ['dist', 'drive', 'bias', 'phat', 'dtone', 'mix', 'post', 'onDirt'] }[key];
+  }
+  setMeta(i, patch) {
+    const bands = this.state.bands.slice();
+    bands[i] = Object.assign({}, bands[i], patch);
+    this.setState({ bands });
+  }
+  // one section's channel menu: 'L' = linked (copies the channel shown onto the other), '0'/'1' = edit that channel alone
+  setSec(i, key, v) {
+    const bands = this.state.bands.slice(), bd = Object.assign({}, bands[i]), cur = bd.sec[key];
+    if (v === 'L') {
+      const src = bd.ch[cur.edit], pick = {};
+      this.fields(key).forEach((f) => { pick[f] = src[f]; });
+      bd.ch = bd.ch.map((c) => Object.assign({}, c, pick));
+      bd.sec = Object.assign({}, bd.sec, { [key]: { link: true, edit: cur.edit } });
+    } else {
+      bd.sec = Object.assign({}, bd.sec, { [key]: { link: false, edit: +v } });
+    }
+    bands[i] = bd;
+    this.setState({ bands });
+  }
+  layout() {
+    const n = this.state.count;
+    const idxs = n === 1 ? [1] : n === 2 ? [0, 2] : [0, 1, 2];
+    const names = n === 1 ? ['FULL'] : n === 2 ? ['LOW', 'HIGH'] : ['LOW', 'MID', 'HIGH'];
+    const xo = n === 1 ? [] : this.state.xo[n];
+    const edges = [20].concat(xo, [20000]);
+    const sel = Math.min(this.state.sel, idxs.length - 1);
+    return { idxs, names, xo, edges, sel };
+  }
+  setBand(i, patch, key) {
+    const bands = this.state.bands.slice(), bd = Object.assign({}, bands[i]), sc = bd.sec[key];
+    bd.ch = bd.ch.map((c, j) => (sc.link || j === sc.edit) ? Object.assign({}, c, patch) : c);
+    bands[i] = bd;
+    this.setState({ bands });
+  }
+  rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
+  rlog(lo, hi) { return lo * Math.pow(hi / lo, Math.random()); }
+  rollPatch(part, lo, hi) {
+    const S = [4, 8, 16, 32, 64, 128, 256, 512, 1000];
+    const p = {};
+    if (part === 'd' || part === 'all') Object.assign(p, { stages: S[Math.floor(Math.random() * S.length)], freq: Math.round(this.rlog(lo * 1.15, hi / 1.15)), pinch: Math.round(this.rnd(0, 100)), spread: Math.round(this.rnd(0, 100)), dmix: Math.round(this.rnd(40, 100)), mode: Math.random() < 0.5 ? 'behaved' : 'unhinged', jitter: Math.random() < 0.35 });
+    if (part === 'f' || part === 'all') Object.assign(p, { gain: Math.round(this.rnd(-12, 24)), env: Math.round(this.rnd(-100, 100)), atk: +this.rlog(0.1, 100).toFixed(1), hold: Math.round(this.rnd(0, 200)), rel: Math.round(this.rlog(5, 2000)) });
+    if (part === 'fb' || part === 'all') Object.assign(p, { fb: Math.round(this.rnd(0, 95)), fbTime: +this.rlog(0.1, 50).toFixed(1), tone: Math.round(this.rnd(0, 100)), inv: Math.random() < 0.3, fbMix: Math.round(this.rnd(40, 100)) });
+    const DT = ['noise', 'soft', 'hard', 'fold', 'rect', 'crush'];
+    if (part === 'dirt' || part === 'all') Object.assign(p, { dist: DT[Math.floor(Math.random() * DT.length)], drive: Math.round(this.rnd(0, 100)), bias: Math.round(this.rnd(-60, 60)), phat: Math.round(this.rnd(0, 100)), dtone: Math.round(this.rnd(0, 100)), mix: Math.round(this.rnd(30, 100)), post: Math.random() < 0.5 });
+    return p;
+  }
+  roll(part) {
+    const L = this.layout();
+    this.setBand(L.idxs[L.sel], this.rollPatch(part, L.edges[L.sel], L.edges[L.sel + 1]), part);
+  }
+  fmtHz(f) { return f < 1000 ? Math.round(f) + ' Hz' : (f / 1000).toFixed(f < 10000 ? 1 : 0) + ' kHz'; }
+  fmtMs(v) { return v < 10 ? v.toFixed(1) + ' ms' : Math.round(v) + ' ms'; }
+  lpos(v, lo, hi) { return Math.log(v / lo) / Math.log(hi / lo); }
+  knob(label, pos, text) {
+    const a = (225 + Math.max(0, Math.min(1, pos)) * 270) * Math.PI / 180;
+    const pt = (r) => [32 + Math.sin(a) * r, 32 - Math.cos(a) * r];
+    const p0 = pt(9.3), p1 = pt(19.05);
+    const f = (v) => v.toFixed(2);
+    return { label, text, pos, x1: f(p0[0]), y1: f(p0[1]), x2: f(p1[0]), y2: f(p1[1]), sx1: f(p0[0] + 0.75), sy1: f(p0[1] + 1.05), sx2: f(p1[0] + 0.75), sy2: f(p1[1] + 1.05) };
+  }
+  // press-and-drag helper: onMove(dx, dy) while dragging; onClick() if the mouse barely moved
+  drag(e, onMove, onClick) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault && e.preventDefault();
+    const x0 = e.clientX, y0 = e.clientY; let moved = false;
+    const mv = (ev) => { const dx = ev.clientX - x0, dy = y0 - ev.clientY; if (Math.abs(dx) + Math.abs(dy) > 2) moved = true; if (moved) onMove(dx, dy); };
+    const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); if (!moved && onClick) onClick(); };
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  }
+  // donut ring for a depth in % (bipolar, from 12 o'clock: clockwise = positive)
+  donut(dp) {
+    const r = 6.5, a = Math.max(-0.999, Math.min(0.999, dp / 100)) * 2 * Math.PI;
+    if (Math.abs(a) < 0.02) return '';
+    const x = (10 + Math.sin(a) * r).toFixed(2), y = (10 - Math.cos(a) * r).toFixed(2);
+    return 'M10 3.5 A' + r + ' ' + r + ' 0 ' + (Math.abs(a) > Math.PI ? 1 : 0) + ' ' + (a > 0 ? 1 : 0) + ' ' + x + ' ' + y;
+  }
+  // arc around a knob from its value to value + depth (depth in %, bipolar)
+  modArc(pos, dp) {
+    const r = 25.5, A = (p) => (225 + Math.max(0, Math.min(1, p)) * 270) * Math.PI / 180;
+    const a0 = A(pos), a1 = A(pos + dp / 100);
+    if (Math.abs(a1 - a0) < 0.01) return '';
+    const P = (a) => (32 + Math.sin(a) * r).toFixed(2) + ' ' + (32 - Math.cos(a) * r).toFixed(2);
+    return 'M' + P(a0) + ' A' + r + ' ' + r + ' 0 ' + (Math.abs(a1 - a0) > Math.PI ? 1 : 0) + ' ' + (a1 > a0 ? 1 : 0) + ' ' + P(a1);
+  }
+  // drag the Env Follower chip; dropping it on a knob assigns it (+50 %), dropping elsewhere does nothing
+  srcDrag(e, bi) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault && e.preventDefault();
+    const root = (e.currentTarget || e.target).closest('.fp');
+    const at = (ev) => { const r = root.getBoundingClientRect(), el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const t = el && el.closest('[data-mod]'); return { x: ev.clientX - r.left, y: ev.clientY - r.top, hot: t ? t.getAttribute('data-mod') : '' }; };
+    const mv = (ev) => this.setState({ drag: at(ev) });
+    const up = (ev) => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
+      const id = at(ev).hot, cur = this.state.bands[bi];
+      if (id) this.setState({ drag: null, bands: this.state.bands.map((b, k) => k === bi ? Object.assign({}, b, { mods: Object.assign({}, b.mods, { [id]: b.mods[id] !== undefined ? b.mods[id] : 50 }) }) : b) });
+      else this.setState({ drag: null }); };
+    this.setState({ drag: at(e) });
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  }
+  splitDrag(e, n, i) {
+    const start = this.state.xo[n][i];
+    this.drag(e, (dx) => {
+      const xo = Object.assign({}, this.state.xo), arr = xo[n].slice();
+      const lo = i > 0 ? arr[i - 1] * 1.5 : 30, hi = i < arr.length - 1 ? arr[i + 1] / 1.5 : 16000;
+      arr[i] = Math.round(Math.min(hi, Math.max(lo, start * Math.pow(2, dx / 50))));
+      xo[n] = arr; this.setState({ xo });
+    });
+  }
+  // real impulse response of N identical biquad all-passes (plus dry for Mix), band-limited to the band's range.
+  // Computed in the frequency domain: H = (1-m) + m * A(w)^N, then an inverse FFT. Drawn as min/max per column.
+  ir(bb, lo, hi) {
+    const key = [bb.stages, bb.freq, bb.pinch, bb.dmix, bb.onD, lo, hi].join('|');
+    this._irc = this._irc || {};
+    if (this._irc[key]) return this._irc[key];
+    const N = bb.onD ? bb.stages : 0, f0 = bb.freq, Q = 0.5 + bb.pinch / 100 * 4, mix = bb.onD ? bb.dmix / 100 : 0;
+    const gd = N * 2 * Q / (Math.PI * f0);                       // peak group delay in seconds
+    const T = Math.min(2, Math.max(0.004, gd * 1.4 + 0.002));    // time window shown
+    const n = 8192, fs = Math.max(n / T, 4 * Math.max(f0, lo * 1.2));
+    const w0 = 2 * Math.PI * f0 / fs, al = Math.sin(w0) / (2 * Q), a0 = 1 + al, a1 = -2 * Math.cos(w0) / a0, a2 = (1 - al) / a0;
+    const re = new Float64Array(n), im = new Float64Array(n);
+    const lg = (f) => Math.log2(Math.max(f, 1));
+    for (let k = 0; k <= n / 2; k++) {
+      const f = k * fs / n, w = 2 * Math.PI * k / n;
+      // soft band window in log frequency (half an octave of slope at each crossover)
+      let g = 1;
+      g *= Math.min(1, Math.max(0, (lg(f) - lg(Math.max(lo, 20)) + 0.5) / 1));
+      g *= Math.min(1, Math.max(0, (lg(Math.min(hi, 20000)) - lg(f) + 0.5) / 1));
+      const c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+      const nr = a2 + a1 * c1 + c2, ni = -(a1 * s1 + s2), dr = 1 + a1 * c1 + a2 * c2, di = -(a1 * s1 + a2 * s2);
+      const ph = N * (Math.atan2(ni, nr) - Math.atan2(di, dr));
+      re[k] = g * ((1 - mix) + mix * Math.cos(ph)); im[k] = g * mix * Math.sin(ph);
+      if (k > 0 && k < n / 2) { re[n - k] = re[k]; im[n - k] = -im[k]; }
+    }
+    // in-place inverse FFT (radix 2)
+    for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; } }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = 2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+      for (let i = 0; i < n; i += len) { let cr = 1, ci = 0;
+        for (let j = 0; j < len / 2; j++) { const ur = re[i + j], ui = im[i + j], vr = re[i + j + len / 2] * cr - im[i + j + len / 2] * ci, vi = re[i + j + len / 2] * ci + im[i + j + len / 2] * cr;
+          re[i + j] = ur + vr; im[i + j] = ui + vi; re[i + j + len / 2] = ur - vr; im[i + j + len / 2] = ui - vi; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } }
+    }
+    const shown = Math.min(n, Math.round(T * fs)), cols = 240, per = shown / cols, mn = [], mx = []; let peak = 1e-9;
+    for (let c = 0; c < cols; c++) { let a = Infinity, b = -Infinity;
+      for (let i = Math.floor(c * per); i < Math.max(Math.floor((c + 1) * per), Math.floor(c * per) + 1); i++) { const v = re[i] / n; if (v < a) a = v; if (v > b) b = v; }
+      mn.push(a); mx.push(b); peak = Math.max(peak, Math.abs(a), Math.abs(b)); }
+    let d = '';
+    for (let c = 0; c < cols; c++) { const y1 = 15 - 13 * mx[c] / peak, y2 = 15 - 13 * mn[c] / peak; d += 'M' + (c + 0.5) + ' ' + y1.toFixed(1) + 'V' + Math.max(y2, y1 + 0.6).toFixed(1); }
+    const ms = T * 1000, res = { d, span: ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(1) + ' s' };
+    this._irc[key] = res;
+    return res;
+  }
+  chirp(bb) {
+    const W = 160, mid = 15, D = Math.log2(bb.stages + 1) / Math.log2(1001);
+    const L = 0.1 + 0.85 * D, fHi = 34, fLo = 3 + bb.pinch / 100 * 18;
+    const pts = ['M0 ' + mid, 'L3 ' + mid, 'L4 3', 'L5 27', 'L6 ' + mid];
+    for (let i = 0; i <= 120; i++) {
+      const t = i / 120, x = 8 + t * (W - 8);
+      let y = mid;
+      if (t < L) {
+        const u = t / L, env = Math.pow(1 - u, 0.7) * (0.35 + 0.65 * Math.min(1, u * 6));
+        const ph = 2 * Math.PI * (fHi * t - (fHi - fLo) * t * t / (2 * L));
+        let v = Math.sin(ph) * env;
+        if (bb.mode === 'unhinged') v += (Math.sin(i * 12.9898) * 43758.5453 % 1) * 0.45 * env;
+        y = mid - 11 * v;
+      }
+      pts.push('L' + x.toFixed(1) + ' ' + y.toFixed(1));
+    }
+    return pts.join(' ');
+  }
+  mini(pos) {
+    const c = 14, R = 8.9, ra = 12.2, a0 = 225 * Math.PI / 180, a1 = 495 * Math.PI / 180, a = a0 + pos * (a1 - a0);
+    const P = (r, t) => [(c + Math.sin(t) * r).toFixed(2), (c - Math.cos(t) * r).toFixed(2)];
+    const arc = (t0, t1) => { const s = P(ra, t0), e = P(ra, t1); return 'M' + s[0] + ' ' + s[1] + ' A' + ra + ' ' + ra + ' 0 ' + (t1 - t0 > Math.PI ? 1 : 0) + ' 1 ' + e[0] + ' ' + e[1]; };
+    const q0 = P(2.5, a), q1 = P(R - 1.9, a);
+    return { track: arc(a0, a1), value: pos > 0.002 ? arc(a0, a) : '', x1: q0[0], y1: q0[1], x2: q1[0], y2: q1[1] };
+  }
+  renderVals() {
+    const s = this.state, L = this.layout();
+    const bi = L.idxs[L.sel], bd = s.bands[bi], cn = this.chNames(bd);
+    const view = (key) => bd.ch[bd.sec[key].edit];
+    const bD = view('d'), bF = view('f'), bFb = view('fb'), bDirt = view('dirt');
+    const chSel = (key) => ({ val: bd.sec[key].link ? 'L' : String(bd.sec[key].edit), n0: cn[0][0], n1: cn[1][0], set: (e) => this.setSec(bi, key, e.target.value) });
+    const tabs = L.names.map((n, i) => {
+      const k = L.idxs[i], bm = s.bands[k], bb = bm.ch[0], b2 = bm.ch[1], nm = this.chNames(bm);
+      const st = bm.stereo === 'MS' ? 'M/S' : 'L/R';
+      const stg = bm.sec.d.link || bb.stages === b2.stages ? String(bb.stages) : bb.stages + ' / ' + b2.stages;
+      const allLinked = ['d', 'f', 'fb', 'dirt'].every((key) => bm.sec[key].link);
+      const lo = L.edges[i], hi = L.edges[i + 1], r1 = this.ir(bb, lo, hi);
+      return { name: n, range: this.fmtHz(lo) + ' – ' + this.fmtHz(hi) + ' · ' + r1.span,
+        splitDown: (e) => this.splitDrag(e, s.count, i), splitReset: () => { const xo = Object.assign({}, s.xo); xo[s.count] = s.count === 2 ? [800] : [180, 2400]; xo[s.count] = xo[s.count].slice(); this.setState({ xo }); }, cls: 'tab' + (i === L.sel ? ' tab-on' : '') + (bm.on ? '' : ' tab-off'), pick: () => this.setState({ sel: i }),
+        ledCls: bm.on ? 'led led-on' : 'led', onLabel: n + ' band on/off', toggleOn: () => this.setMeta(k, { on: !bm.on }),
+        soloCls: bm.solo ? 'recess solo solo-on' : 'recess solo', soloLabel: 'Solo ' + n + ' band', toggleSolo: () => this.setMeta(k, { solo: !bm.solo }),
+        stereo: bm.stereo, stereoLabel: n + ' band stereo mode', setStereo: (e) => this.setMeta(k, { stereo: e.target.value }),
+        linkText: allLinked ? 'LINKED' : nm[0][0] + ' ≠ ' + nm[1][0],
+        chirp: r1.d, stroke: !bm.on || !bb.onD ? '#3a3d44' : i === L.sel ? '#d9c7ff' : '#8a6ad8',
+        chirp2: bm.sec.d.link ? '' : this.ir(b2, lo, hi).d,
+        stagesText: stg + ' stages',
+        hasSplit: i < L.xo.length, split: i < L.xo.length ? this.fmtHz(L.xo[i]) : '' };
+    });
+    const led = (on) => on ? 'led led-on' : 'led';
+    const body = (on) => on ? 'sec-body' : 'sec-body dim';
+    const tog = (on) => on ? 'lamp lamp-on' : 'lamp';
+    const mods = bd.mods || {};
+    const names = { 'd.freq': 'Disperse Freq', 'd.pinch': 'Disperse Pinch', 'd.spread': 'Disperse Spread', 'd.dmix': 'Disperse Mix',
+      'dirt.drive': 'Distortion Drive', 'dirt.bias': 'Distortion Bias', 'dirt.phat': 'Distortion Phat', 'dirt.dtone': 'Distortion Tone', 'dirt.mix': 'Distortion Mix',
+      'fb.fb': 'Feedback Amount', 'fb.fbTime': 'Feedback Time', 'fb.tone': 'Feedback Tone', 'fb.fbMix': 'Feedback Mix' };
+    const depthDown = (id) => (e) => { e.stopPropagation && e.stopPropagation(); const dp = mods[id];
+      this.drag(e, (dx, dy) => { const cur = this.state.bands[bi]; this.setMeta(bi, { mods: Object.assign({}, cur.mods, { [id]: Math.round(Math.max(-100, Math.min(100, dp + dy))) }) }); }); };
+    const clearMod = (id) => () => { const m = Object.assign({}, this.state.bands[bi].mods); delete m[id]; this.setState({ hoverMod: null }); this.setMeta(bi, { mods: m }); };
+    // up to 5 donuts fit; with more, show 4 per page and a button that pages through the rest
+    const modPage = (() => { const all = Object.keys(mods);
+      if (all.length <= 5) return { ids: all, more: { on: false, text: '', next: () => {} } };
+      const pages = Math.ceil(all.length / 4), pg = (s.modPage || 0) % pages, rest = all.length - (pg + 1) * 4;
+      return { ids: all.slice(pg * 4, pg * 4 + 4), more: { on: true, text: rest > 0 ? '+' + rest : '◂', next: () => this.setState({ modPage: (pg + 1) % pages }) } }; })();
+    const modK = (sec, ids, ks) => ks.map((k, j) => {
+      const id = sec + '.' + ids[j], dp = mods[id], on = dp !== undefined;
+      return Object.assign(k, { id, mod: on, depthText: on ? (dp > 0 ? '+' : '') + dp + ' %' : '',
+        slotCls: 'slot' + (s.drag ? ' mod-target' : '') + ((s.drag && s.drag.hot === id) || s.hoverMod === id ? ' mod-hot' : ''),
+        arc: on ? this.modArc(k.pos, dp) : '',
+        });
+    });
+    const plain = (ks) => ks.map((k) => Object.assign(k, { id: '', mod: false, arc: '', slotCls: 'slot' }));
+    const presets = ['01 LASER KICK', '02 SPRING THING', '03 DRIP FEED', '04 BROKEN TAPE', '05 FASE PHUCKED'];
+    return {
+      bD, bF, bFb, bDirt,
+      modList: modPage.ids.map((id) => ({ title: 'Env Follower → ' + names[id] + ' ' + (mods[id] > 0 ? '+' : '') + mods[id] + ' %',
+        ring: this.donut(mods[id]), down: depthDown(id), clear: clearMod(id),
+        enter: () => this.setState({ hoverMod: id }), leave: () => this.setState({ hoverMod: null }) })),
+      modMore: modPage.more,
+      ghost: s.drag ? { on: true, x: s.drag.x, y: s.drag.y } : { on: false, x: 0, y: 0 },
+      srcDown: (e) => this.srcDrag(e, bi),
+      chD: chSel('d'), chF: chSel('f'), chFb: chSel('fb'), chDirt: chSel('dirt'),
+      presetName: presets[s.preset] + (s.preset === 4 ? '' : ''),
+      prevPreset: () => this.setState({ preset: (s.preset + presets.length - 1) % presets.length }),
+      nextPreset: () => this.setState({ preset: (s.preset + 1) % presets.length }),
+      rollAll: () => { const bands = s.bands.map((bm, k) => { const pos = L.idxs.indexOf(k); const lo = pos >= 0 ? L.edges[pos] : 20, hi = pos >= 0 ? L.edges[pos + 1] : 20000; const ch = [Object.assign({}, bm.ch[0]), Object.assign({}, bm.ch[1])]; ['d', 'f', 'fb', 'dirt'].forEach((key) => { const p0 = this.rollPatch(key, lo, hi), p1 = bm.sec[key].link ? p0 : this.rollPatch(key, lo, hi); Object.assign(ch[0], p0); Object.assign(ch[1], p1); }); return Object.assign({}, bm, { ch }); }); this.setState({ bands }); },
+      screws: [{ x: 6, y: 20 }, { x: 1238, y: 20 }, { x: 6, y: 685 }, { x: 1238, y: 685 }],
+      tabs,
+      countVal: String(s.count), setCount: (e) => { const n = +e.target.value; this.setState({ count: n, sel: Math.min(s.sel, n - 1) }); },
+      setMode: (e) => this.setBand(bi, { mode: e.target.value }, 'd'),
+      orderVal: bDirt.post ? 'post' : 'pre', setOrder: (e) => this.setBand(bi, { post: e.target.value === 'post' }, 'dirt'),
+      ledD: led(bD.onD), bodyD: body(bD.onD), toggleD: () => this.setBand(bi, { onD: !bD.onD }, 'd'), rollD: () => this.roll('d'),
+      ledF: led(bF.onF), bodyF: 'sec-body', toggleF: () => this.setBand(bi, { onF: !bF.onF }, 'f'), rollF: () => this.roll('f'),
+      ledFb: led(bFb.onFb), bodyFb: body(bFb.onFb), toggleFb: () => this.setBand(bi, { onFb: !bFb.onFb }, 'fb'), rollFb: () => this.roll('fb'),
+      ledDirt: led(bDirt.onDirt), bodyDirt: body(bDirt.onDirt), toggleDirt: () => this.setBand(bi, { onDirt: !bDirt.onDirt }, 'dirt'), rollDirt: () => this.roll('dirt'),
+      stagesDrag: (e) => { const st = bD.stages; this.drag(e, (dx, dy) => this.setBand(bi, { stages: Math.max(1, Math.min(1000, st + Math.round(dy / 3))) }, 'd')); },
+      stagesUp: () => this.setBand(bi, { stages: bD.stages >= 512 ? 1000 : bD.stages * 2 }, 'd'),
+      stagesDown: () => this.setBand(bi, { stages: bD.stages === 1000 ? 512 : Math.max(1, Math.floor(bD.stages / 2)) }, 'd'),
+      jitterCls: tog(bD.jitter), jitterText: bD.jitter ? 'On' : 'Off', toggleJitter: () => this.setBand(bi, { jitter: !bD.jitter }, 'd'),
+      kD: modK('d', ['freq', 'pinch', 'spread', 'dmix'], [this.knob('FREQ', this.lpos(bD.freq, 20, 20000), this.fmtHz(bD.freq)), this.knob('PINCH', bD.pinch / 100, bD.pinch + ' %'), this.knob('SPREAD', bD.spread / 100, bD.spread + ' %'), this.knob('MIX', bD.dmix / 100, bD.dmix + ' %')]),
+      kF: plain([this.knob('GAIN', (bF.gain + 12) / 36, (bF.gain > 0 ? '+' : '') + bF.gain + ' dB'), this.knob('AMOUNT', (bF.env + 100) / 200, (bF.env > 0 ? '+' : '') + bF.env + ' %'), this.knob('ATTACK', this.lpos(bF.atk, 0.1, 100), this.fmtMs(bF.atk)), this.knob('HOLD', bF.hold / 500, this.fmtMs(bF.hold)), this.knob('RELEASE', this.lpos(bF.rel, 5, 2000), this.fmtMs(bF.rel))]),
+      kFb: modK('fb', ['fb', 'fbTime', 'tone', 'fbMix'], [this.knob('AMOUNT', bFb.fb / 95, bFb.fb + ' %'), this.knob('TIME', this.lpos(bFb.fbTime, 0.1, 50), this.fmtMs(bFb.fbTime)), this.knob('TONE', bFb.tone / 100, bFb.tone + ' %'), this.knob('MIX', bFb.fbMix / 100, bFb.fbMix + ' %')]),
+      invCls: tog(bFb.inv), invText: bFb.inv ? 'On' : 'Off', toggleInv: () => this.setBand(bi, { inv: !bFb.inv }, 'fb'),
+      dw: this.mini(1), bm: this.mini(0),
+      kDirt: modK('dirt', ['drive', 'bias', 'phat', 'dtone', 'mix'], [this.knob(bDirt.dist === 'noise' ? 'NOISE' : 'DRIVE', bDirt.drive / 100, bDirt.drive + ' %'), this.knob('BIAS', (bDirt.bias + 100) / 200, (bDirt.bias > 0 ? '+' : '') + bDirt.bias + ' %'), this.knob('PHAT', bDirt.phat / 100, bDirt.phat + ' %'), this.knob('TONE', bDirt.dtone / 100, bDirt.dtone + ' %'), this.knob('MIX', bDirt.mix / 100, bDirt.mix + ' %')]),
+      setDist: (e) => this.setBand(bi, { dist: e.target.value }, 'dirt'),
+      distHint: { noise: 'Noise injection: noise ring-modulated by the signal', soft: 'tanh warmth', hard: 'flat tops', fold: 'folds back', rect: 'octave up', crush: 'bits + rate' }[bDirt.dist],
+      kOut: [
+        Object.assign(this.knob('DRY/WET', 1, '100 %'), { lock: 'lockDw' }),
+        Object.assign(this.knob('BASS MONO', 0, 'Off'), { lock: 'lockBm' })
+      ].map((k) => { const on = !!s[k.lock]; return Object.assign(k, { lockColor: on ? '#d9c7ff' : '#a3a6ad', shackle: on ? 'M1.25 2.8V1.9A1.25 1.25 0 0 1 3.75 1.9V2.8' : 'M1.25 2.8V1.9A1.25 1.25 0 0 1 3.75 1.9', lockLabel: (on ? 'Unlock ' : 'Lock ') + k.label, toggleLock: () => this.setState({ [k.lock]: !on }) }); }),
+      bypassText: s.bypass ? 'Off' : 'On',
+      powerColor: s.bypass ? '#5d6068' : '#b18cfe', toggleBypass: () => this.setState({ bypass: !s.bypass }),
+      protectCls: led(s.protect), protectText: s.protect ? 'On' : 'Off', toggleProtect: () => this.setState({ protect: !s.protect })
+    };
+  }
+}
+</script>
+</body>
+</html>

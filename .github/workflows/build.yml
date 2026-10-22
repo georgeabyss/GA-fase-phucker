@@ -1,0 +1,67 @@
+# Builds Fase Phucker on GitHub's own machines, on every push to main (or by hand: Actions > Build >
+# Run workflow). The zips are under the run's "Artifacts". JUCE is the version the framework pins.
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive   # framework/ (ga-framework)
+
+      - name: Get JUCE (the version the framework pins) and Ninja
+        run: |
+          git clone --depth 1 --branch "$(cat framework/cmake/juce-version.txt)" https://github.com/juce-framework/JUCE.git ../JUCE
+          brew install ninja
+
+      - name: Build (universal VST3 and AU)
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Package
+        run: |
+          version=$(sed -n 's/^project(FasePhucker VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
+          mkdir -p dist
+          cd build/FasePhucker_artefacts/Release
+          ditto -c -k --keepParent "VST3/Fase Phucker.vst3" "$GITHUB_WORKSPACE/dist/FasePhucker-$version-Mac-VST3.zip"
+          ditto -c -k --keepParent "AU/Fase Phucker.component" "$GITHUB_WORKSPACE/dist/FasePhucker-$version-Mac-AU.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FasePhucker-Mac
+          path: dist/*.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive   # framework/ (ga-framework)
+
+      - name: Get JUCE (the version the framework pins)
+        shell: bash
+        run: git clone --depth 1 --branch "$(cat framework/cmake/juce-version.txt)" https://github.com/juce-framework/JUCE.git ../JUCE
+
+      - name: Build
+        run: |
+          cmake -B build
+          cmake --build build --config Release --parallel
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path CMakeLists.txt -Pattern 'FasePhucker VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path "build/FasePhucker_artefacts/Release/VST3/*.vst3" -DestinationPath "dist/FasePhucker-$version-Windows-VST3.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FasePhucker-Windows-VST3
+          path: dist/*.zip
