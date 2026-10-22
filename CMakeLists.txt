@@ -33,3 +33,6 @@ ga_add_tool(FasePhucker FasePhuckerScreenshots
 ga_add_tool(FasePhucker FasePhuckerParams
     OPTION FPH_PARAMS DESCRIPTION "Build the parameter list and tests"
     SOURCES tools/Parameters.cpp MAIN tools/ParametersMain.cpp)
+
+# The GA control gallery (framework/docs/controls): see framework/cmake/GaPlugin.cmake
+ga_add_gallery(FasePhucker)

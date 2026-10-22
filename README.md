@@ -45,6 +45,8 @@ cp -R "build/FasePhucker_artefacts/Release/AU/Fase Phucker.component" ~/Library/
 | Bundle ID | `com.ga.fasephucker` |
 | Presets | `~/Music/GA/Fase Phucker/Presets`, `.fphpreset` |
 
+The GA control gallery (every framework control, `framework/docs/controls`): `-DGA_GALLERY=ON`, target `FasePhuckerGallery`.
+
 Screenshots of the real interface: `cmake -B build-tools -G Ninja -DCMAKE_BUILD_TYPE=Release -DFPH_SCREENSHOTS=ON`,
 `cmake --build build-tools --target FasePhuckerScreenshots`, then `build-tools/FasePhuckerScreenshots <folder>`.
 
