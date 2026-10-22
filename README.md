@@ -13,9 +13,10 @@ The design, features and build steps are in [docs/design/spec.md](docs/design/sp
 
 ## Status
 
-Build step 1 of 5: the repo skeleton. The plug-in loads and passes audio through the shared GA output
-stage (Dry/Wet, Bass Mono, Phase Protect, oversampling, bypass, safety mute); the window has the
-header, the preset browser and the bottom strip. The bands and the four sections follow.
+Build step 2 of 5: every parameter exists (271, listed in `tests/reference/parameters.txt`); the
+plug-in still passes audio through the shared GA output stage (Dry/Wet, Bass Mono, Phase Protect,
+oversampling, bypass, safety mute), and the window has the header, the preset browser and the bottom
+strip. The DSP and the bands and sections follow.
 
 ## Build
 
@@ -46,3 +47,6 @@ cp -R "build/FasePhucker_artefacts/Release/AU/Fase Phucker.component" ~/Library/
 
 Screenshots of the real interface: `cmake -B build-tools -G Ninja -DCMAKE_BUILD_TYPE=Release -DFPH_SCREENSHOTS=ON`,
 `cmake --build build-tools --target FasePhuckerScreenshots`, then `build-tools/FasePhuckerScreenshots <folder>`.
+
+Parameter IDs never change once they exist: `tools/check_parameters.sh` compares every parameter with
+`tests/reference/parameters.txt` and runs the parameter tests (names, channel links, sessions).

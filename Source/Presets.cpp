@@ -1,10 +1,18 @@
 #include "Presets.h"
-#include "ParamIDs.h"
+#include "Parameters.h"
 
 namespace
 {
-    // the parameters a preset stores (Fase Phucker's own ones join in build step 2)
-    constexpr const char* kPresetParams[] = { pid::bassMono, pid::dryWet };
+    // the parameters a preset stores: all of Fase Phucker's own, plus Bass Mono and Dry/Wet
+    std::vector<const char*> presetParameters()
+    {
+        std::vector<const char*> ids;
+        for (const auto& id : fp::parameterIds())   // static, so the pointers stay valid
+            ids.push_back (id.toRawUTF8());
+        ids.push_back (pid::bassMono);
+        ids.push_back (pid::dryWet);
+        return ids;
+    }
 
     // Starting points; values not listed are the defaults. The first one is the default.
     std::vector<ga::PresetManager::FactoryPreset> factoryPresets()
@@ -22,7 +30,7 @@ ga::PresetManager::Config presetConfig (juce::AudioProcessorValueTreeState&)
                    .getChildFile ("GA").getChildFile ("Fase Phucker").getChildFile ("Presets");
     c.extension = ".fphpreset";
     c.fileTag = "FPHPRESET";
-    c.parameters.assign (std::begin (kPresetParams), std::end (kPresetParams));
+    c.parameters = presetParameters();
     c.lockable = { { pid::dryWet, prop::lockDryWet }, { pid::bassMono, prop::lockBassMono } };
     c.factory = factoryPresets();
     return c;

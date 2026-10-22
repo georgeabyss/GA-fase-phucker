@@ -20,7 +20,7 @@ Fase Phucker is a free multiband all-pass disperser by GA: up to 1000 all-pass s
 
 The input splits into 1, 2 or 3 bands; each band runs its own full chain on two channels (L/R or M/S), and the bands sum back into the shared output stage. See `signal-flow.png`.
 
-- **Band count:** Single, 2 Bands or 3 Bands (LOW | HIGH, or LOW | MID | HIGH). Default splits: 800 Hz for 2 bands; 180 Hz and 2.4 kHz for 3 bands.
+- **Band count:** Single, 2 Bands or 3 Bands (LOW | HIGH, or LOW | MID | HIGH); Init is Single. Default splits: 800 Hz for 2 bands; 180 Hz and 2.4 kHz for 3 bands. Each mode keeps its own splits.
 - **Crossovers:** set by dragging the split value between two band cards; double-click resets. Minimum spacing between splits is 1.5×.
 - **Every band has all settings:** Disperse, Env Follower, Distortion, Feedback, plus on/off and solo.
 - **Stereo per band:** a dropdown on each band card picks L / R or M / S. This decides what the two channels are.
@@ -70,7 +70,7 @@ Four per-band sections plus the band strip on top and the unchanged GA bottom st
 | Hold | 0–500 ms | Keeps the envelope up before release |
 | Release | 5–2000 ms | |
 
-Modulation is drag-to-assign: drag the grip button in the header onto any knob in Disperse, Distortion or Feedback (+50 % by default). Each destination gets a donut next to the grip: drag up/down for depth (−100 to +100 %), double-click to remove, hover to highlight its knob. Assigned knobs show an arc from their value to value + depth; there is no handle on the knob itself. Five donuts fit; with six or more the header shows four plus a +n button that pages through the rest. The follower has no dice and no on/off LED: it is active whenever it has destinations. Assignments are per band.
+Modulation is drag-to-assign: drag the grip button in the header onto any knob in Disperse, Distortion or Feedback (+50 % by default). Each destination gets a donut next to the grip: drag up/down for depth (−100 to +100 %), double-click to remove, hover to highlight its knob. Assigned knobs show an arc from their value to value + depth; there is no handle on the knob itself. The donuts are in fixed knob order, Disperse → Distortion → Feedback, left to right, not in the order they were assigned. Five donuts fit; with six or more the header shows four plus a +n button that pages through the rest. The follower has no dice and no on/off LED: it is active whenever it has destinations. Assignments are per band.
 
 ### Distortion
 
@@ -200,6 +200,10 @@ Every call made on 21–22 Oct 2026; "Rejected" lists what was tried and dropped
 | Spacing | ~28 px between blocks, 12-column grid | Tight, uneven spacing | Unrelated elements were too close |
 | Feedback path | Only around the all-pass chain | Around Distortion when Order = Pre | Decided 22 Oct |
 | Section dice + LED | Kept on Disperse, Distortion, Feedback | Removed like on Env Follower | Decided 22 Oct |
+| Splits | `split` for 2 bands, `split1`/`split2` for 3 bands | Shared split1/split2 | Switching modes never loses a split. Decided 22 Oct |
+| Mod assignment | Hidden `_on` parameter per target; donuts in fixed knob order | Depth 0 = unassigned; assignment order in the state | Assigned at 0 % stays; no extra state. Decided 22 Oct |
+| Automation names | Follow band count and stereo mode | Static "Band 2 · Ch 2" names | Readable. Decided 22 Oct |
+| Init | Single band | 3 Bands | Simplest start. Decided 22 Oct |
 | Window size | 100 % = the mockup's 75 % (945 × 545); laid out in Hyper! Hyper! Dimension's units; Hyper! Hyper! Dimension's 100 % grows to its old 117 % to match | 1260 × 726 at 100 % | Much larger than Hyper! Hyper! Dimension; its old 100 % looked too small. Decided 22 Oct |
 
 ## Parameter scheme
@@ -208,13 +212,20 @@ Decide before the first parameter is added; IDs can never change afterwards.
 
 | Kind | Pattern | Example |
 | --- | --- | --- |
-| Per band, per channel | `b<band><ch>_<param>` | `b2s_freq` = band 2, Side, Freq |
+| Per band, per channel | `b<band><ch>_<param>`; `ch` is `m` (Mid, or Left) or `s` (Side, or Right) | `b2s_freq` = band 2, Side, Freq |
 | Per band | `b<band>_<param>` | `b2_on`, `b2_solo`, `b2_stereo` |
-| Section link | `b<band>_<section>_link` | `b2_dist_link` |
-| Modulation depth | `b<band>_mod_<section>_<param>` | `b2_mod_d_freq` |
-| Global | plain | `bands`, `split1`, `split2` + the shared GA IDs |
+| Section link | `b<band>_<section>_link`; section `disp`, `env`, `dist`, `fb`; Linked / 1st channel / 2nd channel | `b2_dist_link` |
+| Modulation depth | `b<band>_mod_<section>_<param>`; section `d` (Disperse), `x` (Distortion), `f` (Feedback) | `b2_mod_d_freq` |
+| Modulation assigned | the depth's ID + `_on` (not automatable) | `b2_mod_d_freq_on` |
+| Global | plain | `bands`, `split` (2 bands), `split1`, `split2` (3 bands) + the shared GA IDs |
 
-About 200 parameters in total. Presets store only values that differ from the default ("missing = default").
+- b1, b2 and b3 are always the 1st, 2nd and 3rd band of the current mode.
+- Per channel (27): `stages`, `mode`, `jitter`, `freq`, `pinch`, `spread`, `dispmix`, `dispon` · `envgain`, `envamt`, `attack`, `hold`, `release` · `type`, `order`, `drive`, `bias`, `phat`, `disttone`, `distmix`, `diston` · `invert`, `fbamt`, `fbtime`, `fbtone`, `fbmix`, `fbon`. Every section, its on/off included, follows its channel link.
+- Modulation targets (13 per band): `d_freq`, `d_pinch`, `d_spread`, `d_mix` · `x_drive`, `x_bias`, `x_phat`, `x_tone`, `x_mix` · `f_amt`, `f_time`, `f_tone`, `f_mix`.
+- Automation names follow the band count and stereo mode, e.g. "Mid Band · Side · Freq", "Mid Band · Env Mod · Freq"; hosts that cache names keep those from when the plug-in loaded.
+- Linking: while a section is linked, only the 1st channel counts. Unlinking copies the 1st channel onto the 2nd once; linking again copies the channel that was shown onto the other. This happens in the section header's dropdown, never when a session or preset loads.
+
+271 parameters in total (265 of Fase Phucker's own, 6 shared); `tests/reference/parameters.txt` lists them all, and `tools/check_parameters.sh` fails if one changes or disappears. Presets store only values that differ from the default ("missing = default").
 
 ## Open questions
 

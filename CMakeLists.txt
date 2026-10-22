@@ -27,3 +27,9 @@ ga_add_plugin(FasePhucker
 ga_add_tool(FasePhucker FasePhuckerScreenshots
     OPTION FPH_SCREENSHOTS DESCRIPTION "Build the tool that renders screenshots of the interface"
     SOURCES tools/Screenshots.cpp MAIN tools/ScreenshotsMain.cpp)
+
+# Parameter tool: the reference list of every parameter (tests/reference/parameters.txt) and the
+# parameter tests. Built in its own folder too: see tools/check_parameters.sh
+ga_add_tool(FasePhucker FasePhuckerParams
+    OPTION FPH_PARAMS DESCRIPTION "Build the parameter list and tests"
+    SOURCES tools/Parameters.cpp MAIN tools/ParametersMain.cpp)
