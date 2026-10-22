@@ -13,10 +13,9 @@ The design, features and build steps are in [docs/design/spec.md](docs/design/sp
 
 ## Status
 
-Build step 2 of 5: every parameter exists (271, listed in `tests/reference/parameters.txt`); the
-plug-in still passes audio through the shared GA output stage (Dry/Wet, Bass Mono, Phase Protect,
-oversampling, bypass, safety mute), and the window has the header, the preset browser and the bottom
-strip. The DSP and the bands and sections follow.
+Build step 4 of 5: the sound is done. The crossover and bands, Disperse, Distortion (oversampled on
+its own), Feedback and the Env Follower with its modulation all run; the window still shows only the
+header, the preset browser and the bottom strip. The bands and sections come in step 5.
 
 ## Build
 
@@ -52,3 +51,7 @@ Screenshots of the real interface: `cmake -B build-tools -G Ninja -DCMAKE_BUILD_
 
 Parameter IDs never change once they exist: `tools/check_parameters.sh` compares every parameter with
 `tests/reference/parameters.txt` and runs the parameter tests (names, channel links, sessions).
+
+The DSP: `tools/check_dsp.sh` measures the engine (flatness, group delay, latency, aliasing, the
+feedback loop, the envelope, clicks on every switch, CPU) and compares renders through the plug-in
+with `tests/reference/renders`; `tools/check_dsp.sh listen <folder>` writes longer renders to listen to.

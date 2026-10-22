@@ -1,7 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "dsp/Params.h"
+#include "dsp/Engine.h"
 
 namespace fp
 {
@@ -15,7 +15,7 @@ public:
     void read (dsp::Params&) const;
 
     // the normalisable ranges of the knobs the Env Follower drives (dsp::ModTarget order)
-    const juce::NormalisableRange<float>& modRange (int target) const { return modRanges[(size_t) target]; }
+    const dsp::Engine::ModRanges& ranges() const { return modRanges; }
 
 private:
     using Value = std::atomic<float>*;
@@ -36,6 +36,6 @@ private:
 
     Value bands, split, split1, split2, dryWet, bassMono, phaseProtect, osFilter;
     std::array<Band, dsp::kMaxBands> band;
-    std::array<juce::NormalisableRange<float>, dsp::kNumModTargets> modRanges;
+    dsp::Engine::ModRanges modRanges;
 };
 }

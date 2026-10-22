@@ -19,6 +19,7 @@ void Engine::prepare (double sampleRate, int channels, int oversampling)
             disperse[(size_t) b][(size_t) c].prepare (sr, 1000u + 17u * (unsigned) b + 7u * (unsigned) c);
             distortion[(size_t) b][(size_t) c].prepare (sr, oversampling, prm.osLinearPhase, 2000u + 13u * (unsigned) b + 5u * (unsigned) c);
             feedback[(size_t) b][(size_t) c].prepare (sr);
+            envelopes[(size_t) b][(size_t) c].prepare (sr);
         }
     output.prepare (sr, numCh);
     reset();
@@ -37,6 +38,9 @@ void Engine::reset()
     for (auto& band : feedback)
         for (auto& f : band)
             f.reset();
+    for (auto& band : envelopes)
+        for (auto& e : band)
+            e.reset();
     for (auto& d : inputDelay) { d.clear(); d.d = latency(); }
     for (auto& band : bandDelay)
         for (auto& d : band) { d.clear(); d.d = latency(); }
@@ -56,6 +60,33 @@ void Engine::reset()
         wet[(size_t) b].jump (prm.band[(size_t) b].on ? 1.0f : 0.0f);
         level[(size_t) b].jump (! anySolo || prm.band[(size_t) b].solo ? 1.0f : 0.0f);
     }
+}
+
+ChannelParams Engine::modulate (int b, int c, const ChannelParams& base)
+{
+    const auto& bp = prm.band[(size_t) b];
+    auto& positions = modPosition[(size_t) b][(size_t) c];
+    ChannelParams p = base;
+    if (modRanges == nullptr)
+        return p;
+
+    // each knob in its parameter's units, as the range expects (per cent or Hz / ms)
+    float* knob[kNumModTargets] = { &p.freq, &p.pinch, &p.spread, &p.dispMix, &p.drive, &p.bias, &p.phat, &p.distTone, &p.distMix,
+                                    &p.fbAmount, &p.fbTimeMs, &p.fbTone, &p.fbMix };
+    constexpr float unit[kNumModTargets] = { 1.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 1.0f, 100.0f, 100.0f };
+    const float amount = envelopes[(size_t) b][(size_t) c].value() * base.envAmount;
+    for (int t = 0; t < kNumModTargets; ++t)
+    {
+        const auto& range = (*modRanges)[(size_t) t];
+        float pos = range.convertTo0to1 (*knob[t] * unit[t]);
+        if (bp.modOn[(size_t) t])
+        {
+            pos = std::clamp (pos + amount * bp.modDepth[(size_t) t], 0.0f, 1.0f);
+            *knob[t] = range.convertFrom0to1 (pos) / unit[t];
+        }
+        positions[(size_t) t] = pos;
+    }
+    return p;
 }
 
 void Engine::process (float* const* io, int n)
@@ -127,8 +158,14 @@ void Engine::processSubBlock (float* const* io, int offset, int n)
         // the sections, per channel: Distortion (Pre) -> Feedback loop around Disperse -> Distortion (Post)
         for (int c = 0; c < numCh; ++c)
         {
-            const auto& ch = bp.ch[(size_t) c];
             float* x = c == 0 ? l : r;
+
+            // the Env Follower listens to the band before any section, then moves the assigned knobs
+            auto& env = envelopes[(size_t) b][(size_t) c];
+            env.update (bp.ch[(size_t) c]);
+            env.process (x, n);
+            const ChannelParams ch = modulate (b, c, bp.ch[(size_t) c]);
+
             auto& disp = disperse[(size_t) b][(size_t) c];
             auto& dist = distortion[(size_t) b][(size_t) c];
             auto& fb = feedback[(size_t) b][(size_t) c];

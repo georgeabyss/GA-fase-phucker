@@ -29,7 +29,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
 
     const juce::String getName() const override { return "Fase Phucker"; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override { return 3.0; }   // up to 2 s of dispersion, plus feedback
 
     static ga::ProcessorConfig processorConfig();
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout (const fp::ParameterNames&);
@@ -38,6 +38,12 @@ public:
     // channel onto the 2nd once (while linked only the 1st counts); linking again copies the
     // channel that was shown onto the other. Message thread.
     void setSectionLink (int band, fp::Section, fp::Link);
+
+    // The dice: new values within sensible ranges for one section of a band (band 1..3), or, without
+    // a section, for every section of every band in use. Writes the channel being edited (the 1st
+    // while linked). Message thread.
+    void randomise (int band, std::optional<fp::Section>, juce::Random& = juce::Random::getSystemRandom());
+    void randomiseAll (juce::Random& = juce::Random::getSystemRandom());
 
     ga::PresetManager presets { apvts, presetConfig (apvts) };
     fp::dsp::Engine engine;

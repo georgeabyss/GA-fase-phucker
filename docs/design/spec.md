@@ -204,6 +204,12 @@ Every call made on 21–22 Oct 2026; "Rejected" lists what was tried and dropped
 | Mod assignment | Hidden `_on` parameter per target; donuts in fixed knob order | Depth 0 = unassigned; assignment order in the state | Assigned at 0 % stays; no extra state. Decided 22 Oct |
 | Automation names | Follow band count and stereo mode | Static "Band 2 · Ch 2" names | Readable. Decided 22 Oct |
 | Init | Single band | 3 Bands | Simplest start. Decided 22 Oct |
+| Band off | Passes the band unprocessed | Mutes it | Keep the rest of the spectrum. Decided 22 Oct |
+| Tone (Distortion, Feedback) | Tilt around 1 kHz, 50 % = neutral | Low-pass sweep | Decided 22 Oct |
+| Feedback loop | Tone normalised to never add gain, tanh limiter, so 95 % always decays; Mix only while Feedback is on | Self-oscillation at extremes | Stable by construction. Decided 22 Oct |
+| Pre / Post switch | Restarts the channel: fade out, empty its sections, fade the input in | A short crossfade | The chain would smear the switch out over its group delay. Decided 22 Oct |
+| Dice | Mockup ranges; Feedback at most 85 % | 95 % | Never close to ringing. Decided 22 Oct |
+| Tail | 3 s reported | 2 s | Up to 2 s of dispersion plus feedback. Decided 22 Oct |
 | Control sizes | Hyper! Hyper! Dimension's native sizes everywhere (drop-down 64 × 19, LED 6) | The mockup's drop-down (54 × 15 in layout pixels) and LED (9) | Controls keep their native size; the mockup's were approximations. Decided 22 Oct |
 | Window size | 100 % = the mockup's 75 % (945 × 545); laid out in Hyper! Hyper! Dimension's units; Hyper! Hyper! Dimension's 100 % grows to its old 117 % to match | 1260 × 726 at 100 % | Much larger than Hyper! Hyper! Dimension; its old 100 % looked too small. Decided 22 Oct |
 

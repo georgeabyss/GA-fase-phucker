@@ -570,6 +570,123 @@ namespace
         }
     }
 
+    // ---- Env Follower and modulation
+    // the knobs' ranges, from the plug-in's own parameters (as the processor hands them over)
+    const Engine::ModRanges& modRanges()
+    {
+        static const Engine::ModRanges ranges = []
+        {
+            FasePhuckerAudioProcessor proc;
+            Engine::ModRanges r;
+            for (int t = 0; t < fp::dsp::kNumModTargets; ++t)
+                r[(size_t) t] = proc.apvts.getParameter (fp::channelId (1, 0, fp::kModTargets[t].knob))->getNormalisableRange();
+            return r;
+        }();
+        return ranges;
+    }
+
+    // runs a level (the same in both channels) through, returns the engine to look at
+    std::unique_ptr<Engine> runLevel (const Params& p, const std::vector<std::pair<int, float>>& steps, int samples)
+    {
+        auto e = std::make_unique<Engine>();
+        e->setModRanges (&modRanges());
+        e->setParams (p);
+        e->prepare (kRate, 2, 1);
+        AudioBuffer<float> a (2, samples);
+        float level = 0.0f;
+        size_t next = 0;
+        for (int i = 0; i < samples; ++i)
+        {
+            while (next < steps.size() && steps[next].first <= i) level = steps[next++].second;
+            a.setSample (0, i, level); a.setSample (1, i, level);
+        }
+        run (*e, a, 16);
+        return e;
+    }
+
+    void checkModulation()
+    {
+        using fp::dsp::modDispMix;
+        Params p = clean (1);
+        for (auto& c : p.band[0].ch) { c.dispOn = true; c.dispMix = 0.5f; c.envAmount = 1.0f; c.attackMs = 1.0f; c.holdMs = 20.0f; c.releaseMs = 150.0f; }
+
+        {   // a steady 0.5 (the envelope's level): Mix 50 % + 0.5 x 100 % x depth 50 % = 75 %
+            Params q = p;
+            q.band[0].modOn[modDispMix] = true;
+            q.band[0].modDepth[modDispMix] = 0.5f;
+            auto e = runLevel (q, { { 0, 0.5f } }, 9600);
+            expect (std::abs (e->modulated (0, 0, modDispMix) - 0.75f) < 0.005f, "envelope 0.5, Amount +100 %, depth +50 %: Disperse Mix moves from 50 % to "
+                                                                                    + String (e->modulated (0, 0, modDispMix) * 100.0f, 1) + " %");
+            auto f = runLevel (p, { { 0, 0.5f } }, 9600);
+            expect (std::abs (f->modulated (0, 0, modDispMix) - 0.5f) < 1.0e-4f, "not assigned: stays at 50 %");
+
+            Params neg = q;
+            for (auto& c : neg.band[0].ch) c.envAmount = -1.0f;
+            neg.band[0].modDepth[modDispMix] = 1.0f;
+            auto g = runLevel (neg, { { 0, 1.0f } }, 9600);
+            expect (g->modulated (0, 0, modDispMix) < 1.0e-4f, "Amount -100 %, depth +100 %, full level: stops at the bottom of the travel");
+        }
+
+        {   // Attack 10 ms: 63 % after 10 ms; Hold 20 ms; then Release 150 ms: 37 % left after 150 ms
+            Params q = p;
+            for (auto& c : q.band[0].ch) c.attackMs = 10.0f;
+            const float atAttack = runLevel (q, { { 0, 0.5f } }, 480)->envelope (0, 0);
+            const float held = runLevel (q, { { 0, 0.5f }, { 24000, 0.0f } }, 24000 + 900)->envelope (0, 0);
+            const float released = runLevel (q, { { 0, 0.5f }, { 24000, 0.0f } }, 24000 + 960 + 7200)->envelope (0, 0);
+            expect (std::abs (atAttack / 0.5f - 0.632f) < 0.02f && held > 0.499f && std::abs (released / 0.5f - 0.368f) < 0.02f,
+                    "Attack 10 ms: " + String (atAttack / 0.5f * 100.0f, 1) + " % after 10 ms; Hold 20 ms: " + String (held / 0.5f * 100.0f, 1)
+                        + " % after 19 ms; Release 150 ms: " + String (released / 0.5f * 100.0f, 1) + " % left after 150 ms");
+        }
+
+        {   // everything modulated hard, Unhinged, on the drum loop: finite and bounded
+            Params q = clean (3);
+            for (auto& b : q.band)
+            {
+                for (auto& c : b.ch)
+                {
+                    c.dispOn = c.distOn = c.fbOn = true; c.unhinged = true; c.stages = 128; c.envAmount = 1.0f; c.envGainDb = 12.0f;
+                    c.attackMs = 0.1f; c.releaseMs = 20.0f; c.fbAmount = 0.6f; c.type = fp::dsp::DistType::fold;
+                }
+                for (int t = 0; t < fp::dsp::kNumModTargets; ++t) { b.modOn[(size_t) t] = true; b.modDepth[(size_t) t] = t % 2 == 0 ? 1.0f : -1.0f; }
+            }
+            Engine e;
+            e.setModRanges (&modRanges());
+            e.setParams (q);
+            e.prepare (kRate, 2, 2);
+            auto a = musicLoop (4.0);
+            run (e, a);
+            float peak = 0.0f; bool finite = true;
+            for (int c = 0; c < 2; ++c)
+                for (int i = 0; i < a.getNumSamples(); ++i) { finite = finite && std::isfinite (a.getSample (c, i)); peak = std::max (peak, std::abs (a.getSample (c, i))); }
+            expect (finite && peak < 8.0f, "every knob modulated by +/-100 %, Unhinged, Fold, Feedback 60 %, on the drum loop: peak " + String (peak, 2));
+        }
+
+        {   // the dice stays within its ranges, and writes the channel being edited
+            FasePhuckerAudioProcessor proc;
+            Random rng (12345);
+            auto v = [&proc] (const String& id) { return proc.apvts.getRawParameterValue (id)->load(); };
+            bool ok = true;
+            proc.apvts.getParameter (pid::bands)->setValueNotifyingHost (1.0f);   // 3 bands
+            for (int i = 0; i < 100; ++i)
+            {
+                proc.randomiseAll (rng);
+                for (int b = 1; b <= 3; ++b)
+                {
+                    auto m = [&] (const char* n) { return v (fp::channelId (b, 0, n)); };
+                    using namespace pid::ch;
+                    ok = ok && m (dispMix) >= 40.0f && m (fbAmt) <= 85.0f && m (fbMix) >= 40.0f && std::abs (m (bias)) <= 60.0f
+                            && m (distMix) >= 30.0f && m (hold) <= 200.0f && m (freq) >= 20.0f && m (freq) <= 20000.0f;
+                }
+            }
+            const float before = v (fp::channelId (2, 0, pid::ch::drive));
+            proc.setSectionLink (2, fp::Section::distortion, fp::secondChannel);
+            proc.randomise (2, fp::Section::distortion, rng);
+            expect (ok && v (fp::channelId (2, 0, pid::ch::drive)) == before,
+                    "the dice, 100 times on 3 bands: every value in its range; Distortion unlinked, 2nd channel shown: the 1st stays");
+            expect (proc.getTailLengthSeconds() >= 2.0, "tail reported: " + String (proc.getTailLengthSeconds(), 1) + " s");
+        }
+    }
+
     //==========================================================================
     // renders through the whole plug-in
     struct RenderDef
@@ -630,6 +747,16 @@ namespace
                     set (p, channelId (1, 0, pid::ch::fbTime), 2.0f);
                     set (p, channelId (1, 0, pid::ch::invert), 1.0f);
                     set (p, channelId (1, 0, pid::ch::fbTone), 80.0f);
+                } },
+            { "env_mod", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::envAmt), 100.0f);
+                    set (p, channelId (1, 0, pid::ch::envGain), 6.0f);
+                    set (p, modOnId (1, kModTargets[0]), 1.0f);                       // Freq
+                    set (p, modId (1, kModTargets[0]), 40.0f);
+                    set (p, modOnId (1, kModTargets[9]), 1.0f);                       // Feedback Amount
+                    set (p, modId (1, kModTargets[9]), 60.0f);
+                    set (p, channelId (1, 0, pid::ch::fbAmt), 20.0f);
                 } },
             { "3bands_ms_lr", [] (FasePhuckerAudioProcessor& p)
                 {
@@ -769,6 +896,7 @@ int fphRender (int argc, char** argv)
     checkDisperse();
     checkDistortion();
     checkFeedback();
+    checkModulation();
     runRenders (dir, false);
     std::printf ("\n%s\n", failures == 0 ? "All DSP checks passed." : "DSP checks failed.");
     return failures == 0 ? 0 : 1;

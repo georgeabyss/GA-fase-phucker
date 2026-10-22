@@ -5,6 +5,8 @@
 #include "Disperse.h"
 #include "Distortion.h"
 #include "Feedback.h"
+#include "EnvFollower.h"
+#include <juce_core/juce_core.h>
 
 namespace fp::dsp
 {
@@ -16,6 +18,14 @@ class Engine
 public:
     void prepare (double sampleRate, int channels, int oversampling);
     void setParams (const Params& p) { prm = p; output.setParams (p.output); }
+
+    // the ranges of the knobs the Env Follower drives (the parameters'), in ModTarget order; set once
+    using ModRanges = std::array<juce::NormalisableRange<float>, kNumModTargets>;
+    void setModRanges (const ModRanges* r) { modRanges = r; }
+
+    // after process(): a channel's envelope (0..1) and a modulated knob's position (0..1 of its travel)
+    float envelope (int band, int channel) const { return envelopes[(size_t) band][(size_t) channel].value(); }
+    float modulated (int band, int channel, int target) const { return modPosition[(size_t) band][(size_t) channel][(size_t) target]; }
     void process (float* const* io, int numSamples);
     void reset();
 
@@ -51,6 +61,12 @@ private:
     std::array<std::array<Disperse, 2>, kMaxBands> disperse;   // [band][channel]
     std::array<std::array<Distortion, 2>, kMaxBands> distortion;
     std::array<std::array<Feedback, 2>, kMaxBands> feedback;
+    std::array<std::array<EnvFollower, 2>, kMaxBands> envelopes;
+
+    // the knobs as the Env Follower moves them, this sub-block
+    ChannelParams modulate (int band, int channel, const ChannelParams&);
+    const ModRanges* modRanges = nullptr;
+    std::array<std::array<std::array<float, kNumModTargets>, 2>, kMaxBands> modPosition {};
 
     // a fixed delay (Distortion's latency) for the dry paths: the output stage's, and a band that is off
     struct Delay
