@@ -13,6 +13,9 @@ void Engine::prepare (double sampleRate, int channels, int)
     numCh = std::clamp (channels, 1, 2);
     for (auto& s : splitters)
         s.prepare (sr);
+    for (int b = 0; b < kMaxBands; ++b)
+        for (int c = 0; c < 2; ++c)
+            disperse[(size_t) b][(size_t) c].prepare (sr, 1000u + 17u * (unsigned) b + 7u * (unsigned) c);
     output.prepare (sr, numCh);
     reset();
 }
@@ -21,6 +24,9 @@ void Engine::reset()
 {
     for (auto& s : splitters)
         s.reset();
+    for (auto& band : disperse)
+        for (auto& d : band)
+            d.reset();
     output.reset();
     activeBands = prm.bands;
     topology.jump (1.0f);
@@ -95,7 +101,15 @@ void Engine::processSubBlock (float* const* io, int offset, int n)
                 l[i] = m; r[i] = s;
             }
 
-        // the sections come here (Disperse, Distortion, Feedback, Env Follower)
+        // the sections, per channel
+        for (int c = 0; c < numCh; ++c)
+        {
+            const auto& ch = bp.ch[(size_t) c];
+            float* x = c == 0 ? l : r;
+            auto& d = disperse[(size_t) b][(size_t) c];
+            d.update (ch, ch.pinch, ch.spread, ch.dispMix, (double) ch.freq);
+            d.process (x, n);
+        }
 
         if (ms)
             for (int i = 0; i < n; ++i)

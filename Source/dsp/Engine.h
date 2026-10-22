@@ -2,6 +2,7 @@
 
 #include "Params.h"
 #include "BandSplitter.h"
+#include "Disperse.h"
 
 namespace fp::dsp
 {
@@ -45,6 +46,7 @@ private:
     int numCh = 2;
 
     std::array<BandSplitter, 2> splitters;
+    std::array<std::array<Disperse, 2>, kMaxBands> disperse;   // [band][channel]
     std::array<Ramp, kMaxBands> wet;      // 1 = processed, 0 = passed through (band off)
     std::array<Ramp, kMaxBands> level;    // 0 = muted by another band's solo
     int activeBands = 1;                  // the band count in use; a change fades out, switches, fades in

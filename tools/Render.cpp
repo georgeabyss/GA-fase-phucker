@@ -11,6 +11,7 @@
 
 #include "../Source/PluginProcessor.h"
 #include "../Source/ParamIDs.h"
+#include <complex>
 
 namespace
 {
@@ -252,6 +253,114 @@ namespace
         }
     }
 
+    // ---- Disperse
+    Params disperse (int stages, bool unhinged, float freq = 1000.0f, float pinch = 0.5f, float spread = 0.0f)
+    {
+        Params p = clean (1);
+        for (auto& c : p.band[0].ch)
+        {
+            c.dispOn = true; c.stages = stages; c.unhinged = unhinged; c.freq = freq; c.pinch = pinch; c.spread = spread; c.dispMix = 1.0f;
+        }
+        return p;
+    }
+
+    // group delay (seconds) at f, from the phase difference of the neighbouring FFT bins
+    double groupDelay (const std::vector<float>& ir, double f)
+    {
+        const int order = (int) std::log2 ((double) ir.size());
+        dsp::FFT fft (order);
+        std::vector<float> data (ir.size() * 2, 0.0f);
+        std::copy (ir.begin(), ir.end(), data.begin());
+        fft.performRealOnlyForwardTransform (data.data());
+        const double df = kRate / (double) ir.size();
+        const auto k = (size_t) std::lround (f / df);
+        const std::complex<double> a (data[2 * (k - 1)], data[2 * (k - 1) + 1]), b (data[2 * (k + 1)], data[2 * (k + 1) + 1]);
+        return -std::arg (b * std::conj (a)) / (2.0 * MathConstants<double>::twoPi * df);
+    }
+
+    // a 300 Hz sine through the engine while change() alters the settings at 0.5 s: largest step
+    float stepDuring (Params p, const std::function<void (Params&)>& change)
+    {
+        Engine e;
+        e.setParams (p);
+        e.prepare (kRate, 2, 1);
+        AudioBuffer<float> a (2, (int) kRate);
+        for (int i = 0; i < a.getNumSamples(); ++i)
+            for (int c = 0; c < 2; ++c)
+                a.setSample (c, i, 0.5f * (float) std::sin (MathConstants<double>::twoPi * 300.0 * i / kRate));
+        for (int done = 0; done < a.getNumSamples(); done += 256)
+        {
+            if (done == 24064) { change (p); e.setParams (p); }
+            float* io[2] = { a.getWritePointer (0) + done, a.getWritePointer (1) + done };
+            e.process (io, 256);
+        }
+        return largestStep (a.getReadPointer (0) + 9600, a.getNumSamples() - 9600);   // after the chain has filled
+    }
+
+    void checkDisperse()
+    {
+        for (bool unhinged : { false, true })
+        {
+            const String mode = unhinged ? "Unhinged" : "Behaved";
+            const auto ir = impulseResponse (disperse (256, unhinged), 1 << 17);
+            const float dev = worstDeviationDb (ir, 20.0, 20000.0);
+            expect (dev < 0.05f, mode + ", 256 stages: flat within " + String (dev, 4) + " dB");
+            if (! unhinged)
+            {
+                const double expected = 256.0 * 2.0 * 2.5 / (MathConstants<double>::pi * 1000.0);
+                const double measured = groupDelay (ir, 1000.0);
+                expect (std::abs (measured / expected - 1.0) < 0.03,
+                        mode + ": group delay at Freq " + String (measured * 1000.0, 1) + " ms (N 2Q / (pi Freq): " + String (expected * 1000.0, 1) + " ms)");
+            }
+        }
+
+        {   // Mix 0: untouched
+            Params p = disperse (256, false);
+            p.band[0].ch[0].dispMix = p.band[0].ch[1].dispMix = 0.0f;
+            const auto ir = impulseResponse (p, 1 << 12);
+            expect (std::abs (ir[0] - 1.0f) < 1.0e-6f && std::all_of (ir.begin() + 1, ir.end(), [] (float v) { return std::abs (v) < 1.0e-6f; }),
+                    "Disperse Mix 0: the signal passes untouched");
+        }
+
+        const float sineStep = 0.5f * (float) (MathConstants<double>::twoPi * 300.0 / kRate);
+        for (bool unhinged : { false, true })
+        {
+            const String mode = unhinged ? "Unhinged" : "Behaved";
+            const float a = stepDuring (disperse (64, unhinged, 400.0f, 0.3f, 0.3f), [] (Params& p) { for (auto& c : p.band[0].ch) c.stages = 256; });
+            const float b = stepDuring (disperse (256, unhinged, 400.0f, 0.3f, 0.3f), [] (Params& p) { for (auto& c : p.band[0].ch) c.stages = 16; });
+            expect (std::max (a, b) < sineStep * 2.0f, mode + ": Stages crossfade, largest step 64 -> 256: " + String (a, 4) + ", 256 -> 16: " + String (b, 4)
+                                                       + " (the sine's own: " + String (sineStep, 4) + ")");
+        }
+        {
+            const float m = stepDuring (disperse (128, false, 400.0f, 0.3f, 0.3f), [] (Params& p) { for (auto& c : p.band[0].ch) c.unhinged = true; });
+            expect (m < sineStep * 2.0f, "Behaved -> Unhinged crossfade, largest step " + String (m, 4));
+        }
+
+        // CPU: 3 bands x 2 channels x 1000 stages, the worst case
+        for (bool unhinged : { false, true })
+        {
+            Params p = clean (3);
+            for (auto& b : p.band)
+                for (auto& c : b.ch)
+                {
+                    c.dispOn = true; c.stages = 1000; c.unhinged = unhinged; c.jitter = true; c.freq = 800.0f; c.spread = 0.5f;
+                }
+            Engine e;
+            e.setParams (p);
+            e.prepare (kRate, 2, 1);
+            AudioBuffer<float> a (2, (int) kRate * 2);
+            Rng rng (5);
+            for (int c = 0; c < 2; ++c)
+                for (int i = 0; i < a.getNumSamples(); ++i)
+                    a.setSample (c, i, 0.1f * rng.bipolar());
+            const auto t0 = Time::getMillisecondCounterHiRes();
+            run (e, a);
+            const double load = (Time::getMillisecondCounterHiRes() - t0) / 2000.0;
+            expect (load < 1.0, String (unhinged ? "Unhinged" : "Behaved") + ", jitter, 3 bands x 2 channels x 1000 stages: "
+                                    + String (load * 100.0, 0) + " % of one core in real time");
+        }
+    }
+
     //==========================================================================
     // renders through the whole plug-in
     struct RenderDef
@@ -271,6 +380,19 @@ namespace
         using namespace fp;
         static const std::vector<RenderDef> all {
             { "init", [] (FasePhuckerAudioProcessor&) {} },
+            { "disperse_256", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::stages), 256.0f);
+                    set (p, channelId (1, 0, pid::ch::freq), 900.0f);
+                    set (p, channelId (1, 0, pid::ch::pinch), 65.0f);
+                } },
+            { "disperse_unhinged_jitter", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::mode), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::jitter), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::stages), 128.0f);
+                    set (p, channelId (1, 0, pid::ch::spread), 80.0f);
+                } },
             { "3bands_ms_lr", [] (FasePhuckerAudioProcessor& p)
                 {
                     set (p, pid::bands, 2.0f);
@@ -406,6 +528,7 @@ int fphRender (int argc, char** argv)
         return runRenders (dir, true);
 
     checkBands();
+    checkDisperse();
     runRenders (dir, false);
     std::printf ("\n%s\n", failures == 0 ? "All DSP checks passed." : "DSP checks failed.");
     return failures == 0 ? 0 : 1;
