@@ -14,7 +14,7 @@ project(FasePhucker VERSION 0.1.0)
 # No post-build copy: see the README for installing.
 include(framework/cmake/GaPlugin.cmake)
 
-file(GLOB SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp)
+file(GLOB SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/Source/dsp/*.cpp)
 
 ga_add_plugin(FasePhucker
     PRODUCT_NAME "Fase Phucker"
@@ -36,3 +36,9 @@ ga_add_tool(FasePhucker FasePhuckerParams
 
 # The GA control gallery (framework/docs/controls): see framework/cmake/GaPlugin.cmake
 ga_add_gallery(FasePhucker)
+
+# DSP test tool: measured checks of the engine and renders through the plug-in compared with
+# tests/reference/renders. Built in its own folder too: see tools/check_dsp.sh
+ga_add_tool(FasePhucker FasePhuckerRender
+    OPTION FPH_RENDER DESCRIPTION "Build the DSP checks and renders"
+    SOURCES tools/Render.cpp MAIN tools/RenderMain.cpp)

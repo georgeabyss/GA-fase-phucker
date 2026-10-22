@@ -1,8 +1,9 @@
 #pragma once
 
 #include "plugin/ProcessorBase.h"
-#include "dsp/OutputStage.h"
 #include "Parameters.h"
+#include "EngineParams.h"
+#include "dsp/Engine.h"
 #include "Presets.h"
 
 namespace fp
@@ -15,8 +16,7 @@ struct NamesHolder
 }
 
 // Fase Phucker on the GA processor base (oversampling, bypass, safety mute, scope, state).
-// Build step 2: every parameter exists; no effect yet, the audio only runs through the shared
-// output stage.
+// The effect itself is fp::dsp::Engine; its sections oversample themselves (only Distortion needs it).
 class FasePhuckerAudioProcessor : private fp::NamesHolder,
                                   public ga::ProcessorBase,
                                   private juce::AudioProcessorValueTreeState::Listener,
@@ -40,19 +40,21 @@ public:
     void setSectionLink (int band, fp::Section, fp::Link);
 
     ga::PresetManager presets { apvts, presetConfig (apvts) };
-    ga::dsp::OutputStage output;   // dry/wet, Bass Mono, Phase Protect, loudness match
+    fp::dsp::Engine engine;
 
 private:
     void prepareWet (double sampleRate, int channels, int) override;
     void updateWetParams() override;
     void processWet (float* const* io, int numSamples) override;
-    void resetWet() override { output.reset(); }
+    void resetWet() override { engine.reset(); }
+    int wetLatency() const override { return engine.latency(); }
 
     // the band count or a stereo mode changed: the hosts ask for the parameter names again
     void parameterChanged (const juce::String&, float) override { triggerAsyncUpdate(); }
     void handleAsyncUpdate() override;
 
-    int numChannels = 2;
+    fp::EngineParams engineParams { apvts };
+    fp::dsp::Params params;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FasePhuckerAudioProcessor)
 };

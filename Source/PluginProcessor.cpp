@@ -6,7 +6,8 @@
 ga::ProcessorConfig FasePhuckerAudioProcessor::processorConfig()
 {
     ga::ProcessorConfig c;
-    c.scope = false;   // no goniometer in Fase Phucker
+    c.scope = false;           // no goniometer in Fase Phucker
+    c.oversampleWet = false;   // only Distortion is oversampled, by the engine itself
     c.defaultScale = 1.172f;   // as Hyper! Hyper! Dimension: same layout units, same size on screen
     return c;
 }
@@ -67,37 +68,24 @@ void FasePhuckerAudioProcessor::setSectionLink (int band, fp::Section section, f
     linkParam->setValueNotifyingHost (linkParam->convertTo0to1 ((float) link));
 }
 
-void FasePhuckerAudioProcessor::prepareWet (double sampleRate, int channels, int)
+void FasePhuckerAudioProcessor::prepareWet (double sampleRate, int channels, int oversampling)
 {
-    numChannels = channels;
-    output.prepare (sampleRate, channels);
+    engineParams.read (params);
+    engine.setParams (params);
+    engine.prepare (sampleRate, channels, oversampling);
 }
 
 void FasePhuckerAudioProcessor::updateWetParams()
 {
-    ga::dsp::OutputStage::Params o;
-    o.dryWet = param (pid::dryWet) * 0.01f;
-    o.bassMonoHz = param (pid::bassMono);
-    o.phaseProtect = param (pid::phaseProtect) > 0.5f;
-    o.loudnessMatch = getConfig().loudnessMatch;
-    output.setParams (o);
+    engineParams.read (params);
+    params.output.loudnessMatch = getConfig().loudnessMatch;
+    params.output.loudnessWindow = 1.0;   // longer than Hyper! Hyper! Dimension's: dispersion moves transients around
+    engine.setParams (params);
 }
 
 void FasePhuckerAudioProcessor::processWet (float* const* io, int n)
 {
-    output.beginBlock();
-    for (int i = 0; i < n; ++i)
-    {
-        const float l = io[0][i];
-        const float r = numChannels > 1 ? io[1][i] : l;
-
-        float outL = l, outR = r;   // the effect: nothing yet
-        output.process (l, r, outL, outR);
-
-        io[0][i] = outL;
-        if (numChannels > 1) io[1][i] = outR;
-    }
-    output.endBlock();
+    engine.process (io, n);
 }
 
 juce::AudioProcessorEditor* FasePhuckerAudioProcessor::createEditor()
