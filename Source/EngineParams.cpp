@@ -13,6 +13,7 @@ EngineParams::EngineParams (juce::AudioProcessorValueTreeState& s)
     dryWet = v (pid::dryWet);
     bassMono = v (pid::bassMono);
     phaseProtect = v (pid::phaseProtect);
+    osFilter = v (pid::osFilter);
 
     for (int b = 0; b < dsp::kMaxBands; ++b)
     {
@@ -54,6 +55,7 @@ void EngineParams::read (dsp::Params& p) const
     p.output.dryWet = get (dryWet) * 0.01f;
     p.output.bassMonoHz = get (bassMono);
     p.output.phaseProtect = on (phaseProtect);
+    p.osLinearPhase = juce::roundToInt (get (osFilter)) == 0;
 
     for (size_t b = 0; b < (size_t) dsp::kMaxBands; ++b)
     {

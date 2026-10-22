@@ -63,6 +63,7 @@ struct BandParams
 struct Params
 {
     int bands = 1;                                   // 1, 2, 3
+    bool osLinearPhase = true;                       // the anti-alias filter of Distortion's oversampling
     float split = 800.0f, split1 = 180.0f, split2 = 2400.0f;
     std::array<BandParams, kMaxBands> band;
     ga::dsp::OutputStage::Params output;

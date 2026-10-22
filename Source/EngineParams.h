@@ -34,7 +34,7 @@ private:
         std::array<Value, dsp::kNumModTargets> modDepth, modOn;
     };
 
-    Value bands, split, split1, split2, dryWet, bassMono, phaseProtect;
+    Value bands, split, split1, split2, dryWet, bassMono, phaseProtect, osFilter;
     std::array<Band, dsp::kMaxBands> band;
     std::array<juce::NormalisableRange<float>, dsp::kNumModTargets> modRanges;
 };

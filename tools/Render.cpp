@@ -361,6 +361,136 @@ namespace
         }
     }
 
+    // ---- Distortion
+    std::vector<float> impulseResponseAt (const Params& p, int factor, int length, int* reportedLatency = nullptr)
+    {
+        Engine e;
+        e.setParams (p);
+        e.prepare (kRate, 2, factor);
+        if (reportedLatency != nullptr)
+            *reportedLatency = e.latency();
+        constexpr int settle = 9600;   // 200 ms of silence first: every glide has arrived
+        AudioBuffer<float> a (2, settle + length);
+        a.clear();
+        a.setSample (0, settle, 1.0f);
+        a.setSample (1, settle, 1.0f);
+        run (e, a);
+        return { a.getReadPointer (0) + settle, a.getReadPointer (0) + settle + length };
+    }
+
+    // the share of the output's power that is not at a multiple of f (aliasing), in dB
+    float aliasingDb (const Params& p, int factor, double f)
+    {
+        Engine e;
+        e.setParams (p);
+        e.prepare (kRate, 2, factor);
+        const int n = 1 << 15;
+        AudioBuffer<float> a (2, n + 8192);
+        for (int i = 0; i < a.getNumSamples(); ++i)
+            for (int c = 0; c < 2; ++c)
+                a.setSample (c, i, 0.5f * (float) std::sin (MathConstants<double>::twoPi * f * i / kRate));
+        run (e, a);
+        dsp::FFT fft (15);
+        std::vector<float> data ((size_t) n * 2, 0.0f);
+        for (int i = 0; i < n; ++i)   // after it settled, Hann window
+            data[(size_t) i] = a.getSample (0, 8192 + i) * (0.5f - 0.5f * std::cos (MathConstants<float>::twoPi * (float) i / (float) n));
+        fft.performFrequencyOnlyForwardTransform (data.data());
+        double harmonic = 0.0, other = 0.0;
+        for (int k = 1; k < n / 2; ++k)
+        {
+            const double fk = k * kRate / n, ratio = fk / f;
+            const double power = (double) data[(size_t) k] * data[(size_t) k];
+            (std::abs (ratio - std::round (ratio)) * f < 4.0 * kRate / n ? harmonic : other) += power;
+        }
+        return (float) (10.0 * std::log10 (other / (harmonic + other) + 1.0e-30));
+    }
+
+    Params distorted (fp::dsp::DistType type, float drive)
+    {
+        Params p = clean (1);
+        for (auto& c : p.band[0].ch)
+        {
+            c.distOn = true; c.type = type; c.drive = drive; c.distMix = 1.0f;
+        }
+        return p;
+    }
+
+    void checkDistortion()
+    {
+        using fp::dsp::DistType;
+
+        // the latency it reports is the delay it has; the dry paths line up with it
+        for (bool linear : { true, false })
+        {
+            Params p = clean (3);
+            p.osLinearPhase = linear;
+            int reported = 0;
+            const auto ir = impulseResponseAt (p, 2, 1 << 14, &reported);
+            const auto peak = (int) (std::max_element (ir.begin(), ir.end(), [] (float a, float b) { return std::abs (a) < std::abs (b); }) - ir.begin());
+            const String filter = linear ? "linear phase" : "low latency";
+            if (linear)
+                expect (peak == reported, "2x " + filter + ": reports " + String (reported) + " samples latency, the impulse comes out at " + String (peak));
+            const float flat = worstDeviationDb (ir, 20.0, 18000.0);
+            expect (flat < 0.3f, "2x " + filter + ", Distortion off: flat within " + String (flat, 3) + " dB (20 Hz - 18 kHz)");
+
+            // the dry paths, delayed like the wet: a band that is off, and (with one band, where the wet
+            // path is just the delayed input; three bands' crossovers are an all-pass) Dry/Wet at 50 %
+            Params off = p;
+            off.band[1].on = false;
+            Params half = clean (1);
+            half.osLinearPhase = linear;
+            half.output.dryWet = 0.5f;
+            const float a = worstDeviationDb (impulseResponseAt (off, 2, 1 << 14), 20.0, 18000.0);
+            const float b = worstDeviationDb (impulseResponseAt (half, 2, 1 << 14), 20.0, 18000.0);
+            if (linear)
+                expect (std::max (a, b) < 0.3f, "2x " + filter + ", a band off: flat within " + String (a, 3) + " dB; Dry/Wet 50 %: within " + String (b, 3) + " dB");
+        }
+
+        // oversampling keeps aliasing down
+        {
+            const auto p = distorted (DistType::clip, 0.8f);
+            const float at1 = aliasingDb (p, 1, 7000.0), at8 = aliasingDb (p, 8, 7000.0);
+            expect (at1 - at8 > 20.0f, "Clip, 7 kHz: aliasing " + String (at1, 1) + " dB without oversampling, " + String (at8, 1) + " dB at 8x");
+        }
+
+        // every type stays finite and bounded, at the extremes of every knob
+        for (int t = 0; t < 6; ++t)
+        {
+            float worst = 0.0f;
+            bool finite = true;
+            for (float bias : { -1.0f, 1.0f })
+                for (float tone : { 0.0f, 1.0f })
+                {
+                    Params p = distorted ((DistType) t, 1.0f);
+                    for (auto& c : p.band[0].ch) { c.bias = bias; c.phat = 1.0f; c.distTone = tone; }
+                    Engine e;
+                    e.setParams (p);
+                    e.prepare (kRate, 2, 2);
+                    auto a = testSignal();
+                    run (e, a);
+                    for (int c = 0; c < 2; ++c)
+                        for (int i = 0; i < a.getNumSamples(); ++i)
+                        {
+                            finite = finite && std::isfinite (a.getSample (c, i));
+                            worst = std::max (worst, std::abs (a.getSample (c, i)));
+                        }
+                }
+            const char* names[] = { "Noise", "Saturate", "Clip", "Fold", "Rectify", "Crush" };
+            expect (finite && worst < 8.0f, String (names[t]) + " at Drive 100, Bias -100 / +100, Phat 100, Tone 0 / 100: peak " + String (worst, 2));
+        }
+
+        // Pre <-> Post: fades out and in, no click
+        {
+            Params p = distorted (DistType::saturate, 0.3f);
+            for (auto& c : p.band[0].ch) { c.dispOn = true; c.stages = 32; c.freq = 400.0f; }
+            const float m = stepDuring (p, [] (Params& q) { for (auto& c : q.band[0].ch) c.post = true; });
+            Params postAll = p;
+            for (auto& c : postAll.band[0].ch) c.post = true;
+            const float still = std::max (stepDuring (p, [] (Params&) {}), stepDuring (postAll, [] (Params&) {}));
+            expect (m < still * 1.25f, "Distortion Pre -> Post, largest step " + String (m, 4) + " (Pre or Post without a switch: " + String (still, 4) + ")");
+        }
+    }
+
     //==========================================================================
     // renders through the whole plug-in
     struct RenderDef
@@ -392,6 +522,21 @@ namespace
                     set (p, channelId (1, 0, pid::ch::jitter), 1.0f);
                     set (p, channelId (1, 0, pid::ch::stages), 128.0f);
                     set (p, channelId (1, 0, pid::ch::spread), 80.0f);
+                } },
+            { "dist_noise",    [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_saturate", [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 1.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_clip",     [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 2.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_fold",     [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 3.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_rectify",  [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 4.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_crush",    [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 5.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_post_phat_bias_tone", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::type), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::order), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::drive), 45.0f);
+                    set (p, channelId (1, 0, pid::ch::phat), 70.0f);
+                    set (p, channelId (1, 0, pid::ch::bias), 30.0f);
+                    set (p, channelId (1, 0, pid::ch::distTone), 70.0f);
                 } },
             { "3bands_ms_lr", [] (FasePhuckerAudioProcessor& p)
                 {
@@ -529,6 +674,7 @@ int fphRender (int argc, char** argv)
 
     checkBands();
     checkDisperse();
+    checkDistortion();
     runRenders (dir, false);
     std::printf ("\n%s\n", failures == 0 ? "All DSP checks passed." : "DSP checks failed.");
     return failures == 0 ? 0 : 1;
