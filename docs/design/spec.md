@@ -237,6 +237,20 @@ Decide before the first parameter is added; IDs can never change afterwards.
 
 271 parameters in total (265 of Fase Phucker's own, 6 shared); `tests/reference/parameters.txt` lists them all, and `tools/check_parameters.sh` fails if one changes or disappears. Presets store only values that differ from the default ("missing = default").
 
+## Next versions
+
+Notes after 0.1.0 (22 Oct), not built yet.
+
+| For | Note |
+| --- | --- |
+| Framework (all plug-ins) | Redo, next to undo |
+| Framework (all plug-ins) | A padlock on every parameter (kept when a preset loads), not only Dry/Wet and Bass Mono |
+| Framework (all plug-ins) | A drop-down at the right end of a section header sits closer to the edge than an LED does there (today both use the same inset, which looks unbalanced) |
+| Fase Phucker | Dim the bypass button when the host bypasses the plug-in |
+| Fase Phucker | Animate the Env Follower on the knobs: the arc shows where the modulation is right now |
+| Fase Phucker | Set a knob's modulation depth by dragging on the knob itself, as in Serum |
+| Fase Phucker | A click when switching presets: smooth or crossfade preset changes |
+
 ## Open questions
 
 None open. Not approved for now: a signal-order display in the UI, and defaulting the window to 75 %.
