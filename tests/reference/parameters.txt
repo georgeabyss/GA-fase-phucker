@@ -16,7 +16,7 @@ b1m_freq	Band · Mid · Freq	float	20 Hz .. 20 kHz	400 Hz	automatable
 b1m_pinch	Band · Mid · Pinch	float	0 % .. 100 %	50 %	automatable
 b1m_spread	Band · Mid · Spread	float	0 % .. 100 %	30 %	automatable
 b1m_dispmix	Band · Mid · Disperse Mix	float	0 % .. 100 %	100 %	automatable
-b1m_dispon	Band · Mid · Disperse On	bool	off | on	On	automatable
+b1m_dispon	Band · Mid · Disperse On	bool	off | on	Off	automatable
 b1m_envgain	Band · Mid · Env Gain	float	-12 dB .. +24 dB	0 dB	automatable
 b1m_envamt	Band · Mid · Env Amount	float	-100 % .. +100 %	0 %	automatable
 b1m_attack	Band · Mid · Attack	float	0.1 ms .. 100 ms	5.0 ms	automatable
@@ -29,13 +29,13 @@ b1m_bias	Band · Mid · Bias	float	-100 % .. +100 %	0 %	automatable
 b1m_phat	Band · Mid · Phat	float	0 % .. 100 %	0 %	automatable
 b1m_disttone	Band · Mid · Distortion Tone	float	0 % .. 100 %	50 %	automatable
 b1m_distmix	Band · Mid · Distortion Mix	float	0 % .. 100 %	100 %	automatable
-b1m_diston	Band · Mid · Distortion On	bool	off | on	On	automatable
+b1m_diston	Band · Mid · Distortion On	bool	off | on	Off	automatable
 b1m_invert	Band · Mid · Feedback Invert	bool	off | on	Off	automatable
 b1m_fbamt	Band · Mid · Feedback Amount	float	0 % .. 95 %	0 %	automatable
 b1m_fbtime	Band · Mid · Feedback Time	float	0.1 ms .. 50 ms	5.0 ms	automatable
 b1m_fbtone	Band · Mid · Feedback Tone	float	0 % .. 100 %	50 %	automatable
 b1m_fbmix	Band · Mid · Feedback Mix	float	0 % .. 100 %	100 %	automatable
-b1m_fbon	Band · Mid · Feedback On	bool	off | on	On	automatable
+b1m_fbon	Band · Mid · Feedback On	bool	off | on	Off	automatable
 b1s_stages	Band · Side · Stages	float	1 .. 1000	64	automatable
 b1s_mode	Band · Side · Mode	choice	Behaved | Unhinged	Behaved	automatable
 b1s_jitter	Band · Side · Jitter	bool	off | on	Off	automatable
@@ -43,7 +43,7 @@ b1s_freq	Band · Side · Freq	float	20 Hz .. 20 kHz	400 Hz	automatable
 b1s_pinch	Band · Side · Pinch	float	0 % .. 100 %	50 %	automatable
 b1s_spread	Band · Side · Spread	float	0 % .. 100 %	30 %	automatable
 b1s_dispmix	Band · Side · Disperse Mix	float	0 % .. 100 %	100 %	automatable
-b1s_dispon	Band · Side · Disperse On	bool	off | on	On	automatable
+b1s_dispon	Band · Side · Disperse On	bool	off | on	Off	automatable
 b1s_envgain	Band · Side · Env Gain	float	-12 dB .. +24 dB	0 dB	automatable
 b1s_envamt	Band · Side · Env Amount	float	-100 % .. +100 %	0 %	automatable
 b1s_attack	Band · Side · Attack	float	0.1 ms .. 100 ms	5.0 ms	automatable
@@ -56,13 +56,13 @@ b1s_bias	Band · Side · Bias	float	-100 % .. +100 %	0 %	automatable
 b1s_phat	Band · Side · Phat	float	0 % .. 100 %	0 %	automatable
 b1s_disttone	Band · Side · Distortion Tone	float	0 % .. 100 %	50 %	automatable
 b1s_distmix	Band · Side · Distortion Mix	float	0 % .. 100 %	100 %	automatable
-b1s_diston	Band · Side · Distortion On	bool	off | on	On	automatable
+b1s_diston	Band · Side · Distortion On	bool	off | on	Off	automatable
 b1s_invert	Band · Side · Feedback Invert	bool	off | on	Off	automatable
 b1s_fbamt	Band · Side · Feedback Amount	float	0 % .. 95 %	0 %	automatable
 b1s_fbtime	Band · Side · Feedback Time	float	0.1 ms .. 50 ms	5.0 ms	automatable
 b1s_fbtone	Band · Side · Feedback Tone	float	0 % .. 100 %	50 %	automatable
 b1s_fbmix	Band · Side · Feedback Mix	float	0 % .. 100 %	100 %	automatable
-b1s_fbon	Band · Side · Feedback On	bool	off | on	On	automatable
+b1s_fbon	Band · Side · Feedback On	bool	off | on	Off	automatable
 b1_mod_d_freq	Band · Env Mod · Freq	float	-100 % .. +100 %	+50 %	automatable
 b1_mod_d_freq_on	Band · Env Mod · Freq Assigned	bool	off | on	Off	-
 b1_mod_d_pinch	Band · Env Mod · Pinch	float	-100 % .. +100 %	+50 %	automatable
@@ -103,7 +103,7 @@ b2m_freq	Band 2 · Mid · Freq	float	20 Hz .. 20 kHz	400 Hz	automatable
 b2m_pinch	Band 2 · Mid · Pinch	float	0 % .. 100 %	50 %	automatable
 b2m_spread	Band 2 · Mid · Spread	float	0 % .. 100 %	30 %	automatable
 b2m_dispmix	Band 2 · Mid · Disperse Mix	float	0 % .. 100 %	100 %	automatable
-b2m_dispon	Band 2 · Mid · Disperse On	bool	off | on	On	automatable
+b2m_dispon	Band 2 · Mid · Disperse On	bool	off | on	Off	automatable
 b2m_envgain	Band 2 · Mid · Env Gain	float	-12 dB .. +24 dB	0 dB	automatable
 b2m_envamt	Band 2 · Mid · Env Amount	float	-100 % .. +100 %	0 %	automatable
 b2m_attack	Band 2 · Mid · Attack	float	0.1 ms .. 100 ms	5.0 ms	automatable
@@ -116,13 +116,13 @@ b2m_bias	Band 2 · Mid · Bias	float	-100 % .. +100 %	0 %	automatable
 b2m_phat	Band 2 · Mid · Phat	float	0 % .. 100 %	0 %	automatable
 b2m_disttone	Band 2 · Mid · Distortion Tone	float	0 % .. 100 %	50 %	automatable
 b2m_distmix	Band 2 · Mid · Distortion Mix	float	0 % .. 100 %	100 %	automatable
-b2m_diston	Band 2 · Mid · Distortion On	bool	off | on	On	automatable
+b2m_diston	Band 2 · Mid · Distortion On	bool	off | on	Off	automatable
 b2m_invert	Band 2 · Mid · Feedback Invert	bool	off | on	Off	automatable
 b2m_fbamt	Band 2 · Mid · Feedback Amount	float	0 % .. 95 %	0 %	automatable
 b2m_fbtime	Band 2 · Mid · Feedback Time	float	0.1 ms .. 50 ms	5.0 ms	automatable
 b2m_fbtone	Band 2 · Mid · Feedback Tone	float	0 % .. 100 %	50 %	automatable
 b2m_fbmix	Band 2 · Mid · Feedback Mix	float	0 % .. 100 %	100 %	automatable
-b2m_fbon	Band 2 · Mid · Feedback On	bool	off | on	On	automatable
+b2m_fbon	Band 2 · Mid · Feedback On	bool	off | on	Off	automatable
 b2s_stages	Band 2 · Side · Stages	float	1 .. 1000	64	automatable
 b2s_mode	Band 2 · Side · Mode	choice	Behaved | Unhinged	Behaved	automatable
 b2s_jitter	Band 2 · Side · Jitter	bool	off | on	Off	automatable
@@ -130,7 +130,7 @@ b2s_freq	Band 2 · Side · Freq	float	20 Hz .. 20 kHz	400 Hz	automatable
 b2s_pinch	Band 2 · Side · Pinch	float	0 % .. 100 %	50 %	automatable
 b2s_spread	Band 2 · Side · Spread	float	0 % .. 100 %	30 %	automatable
 b2s_dispmix	Band 2 · Side · Disperse Mix	float	0 % .. 100 %	100 %	automatable
-b2s_dispon	Band 2 · Side · Disperse On	bool	off | on	On	automatable
+b2s_dispon	Band 2 · Side · Disperse On	bool	off | on	Off	automatable
 b2s_envgain	Band 2 · Side · Env Gain	float	-12 dB .. +24 dB	0 dB	automatable
 b2s_envamt	Band 2 · Side · Env Amount	float	-100 % .. +100 %	0 %	automatable
 b2s_attack	Band 2 · Side · Attack	float	0.1 ms .. 100 ms	5.0 ms	automatable
@@ -143,13 +143,13 @@ b2s_bias	Band 2 · Side · Bias	float	-100 % .. +100 %	0 %	automatable
 b2s_phat	Band 2 · Side · Phat	float	0 % .. 100 %	0 %	automatable
 b2s_disttone	Band 2 · Side · Distortion Tone	float	0 % .. 100 %	50 %	automatable
 b2s_distmix	Band 2 · Side · Distortion Mix	float	0 % .. 100 %	100 %	automatable
-b2s_diston	Band 2 · Side · Distortion On	bool	off | on	On	automatable
+b2s_diston	Band 2 · Side · Distortion On	bool	off | on	Off	automatable
 b2s_invert	Band 2 · Side · Feedback Invert	bool	off | on	Off	automatable
 b2s_fbamt	Band 2 · Side · Feedback Amount	float	0 % .. 95 %	0 %	automatable
 b2s_fbtime	Band 2 · Side · Feedback Time	float	0.1 ms .. 50 ms	5.0 ms	automatable
 b2s_fbtone	Band 2 · Side · Feedback Tone	float	0 % .. 100 %	50 %	automatable
 b2s_fbmix	Band 2 · Side · Feedback Mix	float	0 % .. 100 %	100 %	automatable
-b2s_fbon	Band 2 · Side · Feedback On	bool	off | on	On	automatable
+b2s_fbon	Band 2 · Side · Feedback On	bool	off | on	Off	automatable
 b2_mod_d_freq	Band 2 · Env Mod · Freq	float	-100 % .. +100 %	+50 %	automatable
 b2_mod_d_freq_on	Band 2 · Env Mod · Freq Assigned	bool	off | on	Off	-
 b2_mod_d_pinch	Band 2 · Env Mod · Pinch	float	-100 % .. +100 %	+50 %	automatable
@@ -190,7 +190,7 @@ b3m_freq	Band 3 · Mid · Freq	float	20 Hz .. 20 kHz	400 Hz	automatable
 b3m_pinch	Band 3 · Mid · Pinch	float	0 % .. 100 %	50 %	automatable
 b3m_spread	Band 3 · Mid · Spread	float	0 % .. 100 %	30 %	automatable
 b3m_dispmix	Band 3 · Mid · Disperse Mix	float	0 % .. 100 %	100 %	automatable
-b3m_dispon	Band 3 · Mid · Disperse On	bool	off | on	On	automatable
+b3m_dispon	Band 3 · Mid · Disperse On	bool	off | on	Off	automatable
 b3m_envgain	Band 3 · Mid · Env Gain	float	-12 dB .. +24 dB	0 dB	automatable
 b3m_envamt	Band 3 · Mid · Env Amount	float	-100 % .. +100 %	0 %	automatable
 b3m_attack	Band 3 · Mid · Attack	float	0.1 ms .. 100 ms	5.0 ms	automatable
@@ -203,13 +203,13 @@ b3m_bias	Band 3 · Mid · Bias	float	-100 % .. +100 %	0 %	automatable
 b3m_phat	Band 3 · Mid · Phat	float	0 % .. 100 %	0 %	automatable
 b3m_disttone	Band 3 · Mid · Distortion Tone	float	0 % .. 100 %	50 %	automatable
 b3m_distmix	Band 3 · Mid · Distortion Mix	float	0 % .. 100 %	100 %	automatable
-b3m_diston	Band 3 · Mid · Distortion On	bool	off | on	On	automatable
+b3m_diston	Band 3 · Mid · Distortion On	bool	off | on	Off	automatable
 b3m_invert	Band 3 · Mid · Feedback Invert	bool	off | on	Off	automatable
 b3m_fbamt	Band 3 · Mid · Feedback Amount	float	0 % .. 95 %	0 %	automatable
 b3m_fbtime	Band 3 · Mid · Feedback Time	float	0.1 ms .. 50 ms	5.0 ms	automatable
 b3m_fbtone	Band 3 · Mid · Feedback Tone	float	0 % .. 100 %	50 %	automatable
 b3m_fbmix	Band 3 · Mid · Feedback Mix	float	0 % .. 100 %	100 %	automatable
-b3m_fbon	Band 3 · Mid · Feedback On	bool	off | on	On	automatable
+b3m_fbon	Band 3 · Mid · Feedback On	bool	off | on	Off	automatable
 b3s_stages	Band 3 · Side · Stages	float	1 .. 1000	64	automatable
 b3s_mode	Band 3 · Side · Mode	choice	Behaved | Unhinged	Behaved	automatable
 b3s_jitter	Band 3 · Side · Jitter	bool	off | on	Off	automatable
@@ -217,7 +217,7 @@ b3s_freq	Band 3 · Side · Freq	float	20 Hz .. 20 kHz	400 Hz	automatable
 b3s_pinch	Band 3 · Side · Pinch	float	0 % .. 100 %	50 %	automatable
 b3s_spread	Band 3 · Side · Spread	float	0 % .. 100 %	30 %	automatable
 b3s_dispmix	Band 3 · Side · Disperse Mix	float	0 % .. 100 %	100 %	automatable
-b3s_dispon	Band 3 · Side · Disperse On	bool	off | on	On	automatable
+b3s_dispon	Band 3 · Side · Disperse On	bool	off | on	Off	automatable
 b3s_envgain	Band 3 · Side · Env Gain	float	-12 dB .. +24 dB	0 dB	automatable
 b3s_envamt	Band 3 · Side · Env Amount	float	-100 % .. +100 %	0 %	automatable
 b3s_attack	Band 3 · Side · Attack	float	0.1 ms .. 100 ms	5.0 ms	automatable
@@ -230,13 +230,13 @@ b3s_bias	Band 3 · Side · Bias	float	-100 % .. +100 %	0 %	automatable
 b3s_phat	Band 3 · Side · Phat	float	0 % .. 100 %	0 %	automatable
 b3s_disttone	Band 3 · Side · Distortion Tone	float	0 % .. 100 %	50 %	automatable
 b3s_distmix	Band 3 · Side · Distortion Mix	float	0 % .. 100 %	100 %	automatable
-b3s_diston	Band 3 · Side · Distortion On	bool	off | on	On	automatable
+b3s_diston	Band 3 · Side · Distortion On	bool	off | on	Off	automatable
 b3s_invert	Band 3 · Side · Feedback Invert	bool	off | on	Off	automatable
 b3s_fbamt	Band 3 · Side · Feedback Amount	float	0 % .. 95 %	0 %	automatable
 b3s_fbtime	Band 3 · Side · Feedback Time	float	0.1 ms .. 50 ms	5.0 ms	automatable
 b3s_fbtone	Band 3 · Side · Feedback Tone	float	0 % .. 100 %	50 %	automatable
 b3s_fbmix	Band 3 · Side · Feedback Mix	float	0 % .. 100 %	100 %	automatable
-b3s_fbon	Band 3 · Side · Feedback On	bool	off | on	On	automatable
+b3s_fbon	Band 3 · Side · Feedback On	bool	off | on	Off	automatable
 b3_mod_d_freq	Band 3 · Env Mod · Freq	float	-100 % .. +100 %	+50 %	automatable
 b3_mod_d_freq_on	Band 3 · Env Mod · Freq Assigned	bool	off | on	Off	-
 b3_mod_d_pinch	Band 3 · Env Mod · Pinch	float	-100 % .. +100 %	+50 %	automatable

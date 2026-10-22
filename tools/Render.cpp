@@ -509,9 +509,9 @@ namespace
         for (bool invert : { false, true })
         {
             const auto ir = impulseResponseAt (looped (0.5f, 1.0f, 0.5f, invert, false), 1, 256, nullptr, 0.01f);
-            const float first = ir[48] / 0.01f, second = ir[96] / 0.01f;
-            const float want = invert ? -0.5f : 0.5f;
-            expect (std::abs (first - want) < 0.02f && std::abs (second - 0.25f) < 0.02f,
+            const float first = ir[48] / 0.01f, second = ir[96] / 0.01f;   // loop gain 1.25 x 50 %
+            const float want = invert ? -0.625f : 0.625f;
+            expect (std::abs (first - want) < 0.02f && std::abs (second - 0.390625f) < 0.02f,
                     String ("echo after 48 samples at ") + String (first, 3) + ", then " + String (second, 3) + (invert ? " (Invert)" : ""));
         }
 
@@ -525,17 +525,20 @@ namespace
             expect (worst < 1.0e-6f, "Feedback off (Mix 30 %) = Amount 0: largest difference " + String (worst));
         }
 
-        // stable and decaying at 95 %, at the extremes of Tone and Time, with and without Disperse
+        // below 80 % every tail falls; above it, with Tone neutral, the loop rings on by itself (at the
+        // extremes of Tone it can only ring where the tilt leaves enough); bounded either way, at the
+        // extremes of Time (0.1, 1, 50 ms), with and without Disperse
+        for (float amount : { 0.75f, 0.95f })
         {
-            float peak = 0.0f, worstRatio = -100.0f;
+            float peak = 0.0f, slowest = -1000.0f, quickest = 1000.0f;
             bool finite = true;
-            for (float tone : { 0.0f, 1.0f })
-                for (float time : { 0.1f, 50.0f })
+            for (float tone : { 0.0f, 0.5f, 1.0f })
+                for (float time : { 0.1f, 1.0f, 50.0f })
                     for (bool invert : { false, true })
                         for (bool withDisperse : { false, true })
                         {
                             Engine e;
-                            e.setParams (looped (0.95f, time, tone, invert, withDisperse));
+                            e.setParams (looped (amount, time, tone, invert, withDisperse));
                             e.prepare (kRate, 2, 1);
                             AudioBuffer<float> a (2, (int) kRate * 4);
                             a.clear();
@@ -550,12 +553,19 @@ namespace
                                     peak = std::max (peak, std::abs (a.getSample (c, i)));
                                 }
                             const int half = (int) (kRate * 0.5);
-                            const float early = a.getRMSLevel (0, (int) kRate * 2, half), late = a.getRMSLevel (0, (int) kRate * 4 - half, half);
-                            worstRatio = std::max (worstRatio, Decibels::gainToDecibels (late, -200.0f) - Decibels::gainToDecibels (early, -200.0f));
+                            auto rms = [&a] (int from, int len) { return std::max (a.getRMSLevel (0, from, len), a.getRMSLevel (1, from, len)); };
+                            const float early = rms ((int) kRate * 2, half), late = rms ((int) kRate * 4 - half, half);
+                            const float change = Decibels::gainToDecibels (late, -200.0f) - Decibels::gainToDecibels (early, -200.0f);
+                            slowest = std::max (slowest, change);
+                            if (tone == 0.5f && time >= 1.0f)   // at 0.1 ms the lowest resonance is 10 kHz
+                                quickest = std::min (quickest, change);
                         }
-            expect (finite && peak < 4.0f && worstRatio < -3.0f,
-                    "Amount 95 %, Tone 0 / 100, Time 0.1 / 50 ms, Invert, with and without Disperse: peak " + String (peak, 2)
-                        + ", the slowest tail falls " + String (-worstRatio, 1) + " dB in 1.5 s");
+            if (amount < 0.8f)
+                expect (finite && peak < 4.0f && slowest < -3.0f, "Amount 75 % at every extreme: every tail falls (the slowest by "
+                                                                       + String (-slowest, 1) + " dB in 1.5 s), peak " + String (peak, 2));
+            else
+                expect (finite && peak < 4.0f && quickest > -3.0f, "Amount 95 %, Tone neutral, Time 1 / 50 ms: rings on by itself (no tail falls more than "
+                                                                        + String (-quickest, 1) + " dB in 1.5 s); at every extreme bounded, peak " + String (peak, 2));
         }
 
         // switching Feedback on: no click
@@ -674,7 +684,7 @@ namespace
                 {
                     auto m = [&] (const char* n) { return v (fp::channelId (b, 0, n)); };
                     using namespace pid::ch;
-                    ok = ok && m (dispMix) >= 40.0f && m (fbAmt) <= 85.0f && m (fbMix) >= 40.0f && std::abs (m (bias)) <= 60.0f
+                    ok = ok && m (dispMix) >= 40.0f && m (fbAmt) <= 70.0f && m (fbMix) >= 40.0f && std::abs (m (bias)) <= 60.0f
                             && m (distMix) >= 30.0f && m (hold) <= 200.0f && m (freq) >= 20.0f && m (freq) <= 20000.0f;
                 }
             }
@@ -701,6 +711,14 @@ namespace
         param->setValueNotifyingHost (param->convertTo0to1 (value));
     }
 
+    void distortion (FasePhuckerAudioProcessor& p, int type)   // a type at Drive 60 %, with Disperse
+    {
+        set (p, fp::channelId (1, 0, pid::ch::dispOn), 1.0f);
+        set (p, fp::channelId (1, 0, pid::ch::distOn), 1.0f);
+        set (p, fp::channelId (1, 0, pid::ch::type), (float) type);
+        set (p, fp::channelId (1, 0, pid::ch::drive), 60.0f);
+    }
+
     const std::vector<RenderDef>& renders()
     {
         using namespace fp;
@@ -708,25 +726,29 @@ namespace
             { "init", [] (FasePhuckerAudioProcessor&) {} },
             { "disperse_256", [] (FasePhuckerAudioProcessor& p)
                 {
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
                     set (p, channelId (1, 0, pid::ch::stages), 256.0f);
                     set (p, channelId (1, 0, pid::ch::freq), 900.0f);
                     set (p, channelId (1, 0, pid::ch::pinch), 65.0f);
                 } },
             { "disperse_unhinged_jitter", [] (FasePhuckerAudioProcessor& p)
                 {
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
                     set (p, channelId (1, 0, pid::ch::mode), 1.0f);
                     set (p, channelId (1, 0, pid::ch::jitter), 1.0f);
                     set (p, channelId (1, 0, pid::ch::stages), 128.0f);
                     set (p, channelId (1, 0, pid::ch::spread), 80.0f);
                 } },
-            { "dist_noise",    [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
-            { "dist_saturate", [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 1.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
-            { "dist_clip",     [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 2.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
-            { "dist_fold",     [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 3.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
-            { "dist_rectify",  [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 4.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
-            { "dist_crush",    [] (FasePhuckerAudioProcessor& p) { set (p, channelId (1, 0, pid::ch::type), 5.0f); set (p, channelId (1, 0, pid::ch::drive), 60.0f); } },
+            { "dist_noise",    [] (FasePhuckerAudioProcessor& p) { distortion (p, 0); } },
+            { "dist_saturate", [] (FasePhuckerAudioProcessor& p) { distortion (p, 1); } },
+            { "dist_clip",     [] (FasePhuckerAudioProcessor& p) { distortion (p, 2); } },
+            { "dist_fold",     [] (FasePhuckerAudioProcessor& p) { distortion (p, 3); } },
+            { "dist_rectify",  [] (FasePhuckerAudioProcessor& p) { distortion (p, 4); } },
+            { "dist_crush",    [] (FasePhuckerAudioProcessor& p) { distortion (p, 5); } },
             { "dist_post_phat_bias_tone", [] (FasePhuckerAudioProcessor& p)
                 {
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::distOn), 1.0f);
                     set (p, channelId (1, 0, pid::ch::type), 1.0f);
                     set (p, channelId (1, 0, pid::ch::order), 1.0f);
                     set (p, channelId (1, 0, pid::ch::drive), 45.0f);
@@ -736,20 +758,32 @@ namespace
                 } },
             { "feedback_long", [] (FasePhuckerAudioProcessor& p)
                 {
-                    set (p, channelId (1, 0, pid::ch::distOn), 0.0f);
-                    set (p, channelId (1, 0, pid::ch::fbAmt), 85.0f);
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbAmt), 70.0f);
                     set (p, channelId (1, 0, pid::ch::fbTime), 20.0f);
                 } },
             { "feedback_invert_tone", [] (FasePhuckerAudioProcessor& p)
                 {
-                    set (p, channelId (1, 0, pid::ch::distOn), 0.0f);
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbOn), 1.0f);
                     set (p, channelId (1, 0, pid::ch::fbAmt), 70.0f);
                     set (p, channelId (1, 0, pid::ch::fbTime), 2.0f);
                     set (p, channelId (1, 0, pid::ch::invert), 1.0f);
                     set (p, channelId (1, 0, pid::ch::fbTone), 80.0f);
                 } },
+            { "feedback_self_oscillation", [] (FasePhuckerAudioProcessor& p)
+                {
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbAmt), 92.0f);
+                    set (p, channelId (1, 0, pid::ch::fbTime), 8.0f);
+                    set (p, channelId (1, 0, pid::ch::fbTone), 30.0f);
+                } },
             { "env_mod", [] (FasePhuckerAudioProcessor& p)
                 {
+                    set (p, channelId (1, 0, pid::ch::dispOn), 1.0f);
+                    set (p, channelId (1, 0, pid::ch::fbOn), 1.0f);
                     set (p, channelId (1, 0, pid::ch::envAmt), 100.0f);
                     set (p, channelId (1, 0, pid::ch::envGain), 6.0f);
                     set (p, modOnId (1, kModTargets[0]), 1.0f);                       // Freq
@@ -760,6 +794,8 @@ namespace
                 } },
             { "3bands_ms_lr", [] (FasePhuckerAudioProcessor& p)
                 {
+                    for (int b = 1; b <= 3; ++b)
+                        set (p, channelId (b, 0, pid::ch::dispOn), 1.0f);   // linked: the 1st channel's switch counts for both
                     set (p, pid::bands, 2.0f);
                     set (p, bandId (3, pid::band::stereo), 0.0f);
                     set (p, bandId (2, pid::band::on), 0.0f);
@@ -835,6 +871,24 @@ namespace
         return {};
     }
 
+    // Init through the whole plug-in: the input, delayed by the latency it reports
+    void checkInit()
+    {
+        const auto input = testSignal();
+        FasePhuckerAudioProcessor proc;
+        proc.setPlayConfigDetails (2, 2, kRate, 512);
+        proc.prepareToPlay (kRate, 512);
+        const int latency = proc.getLatencySamples();
+        proc.releaseResources();
+        const auto out = render (renders().front(), input);
+        float worst = 0.0f;
+        for (int c = 0; c < 2; ++c)
+            for (int i = latency; i < input.getNumSamples(); ++i)
+                worst = std::max (worst, std::abs (out.getSample (c, i) - input.getSample (c, i - latency)));
+        expect (worst < 1.0e-5f, "Init: the input, " + String (latency) + " samples later (largest difference "
+                                     + String (Decibels::gainToDecibels (worst, -200.0f), 1) + " dB)");
+    }
+
     int runRenders (const File& dir, bool write)
     {
         const auto input = testSignal();
@@ -897,6 +951,7 @@ int fphRender (int argc, char** argv)
     checkDistortion();
     checkFeedback();
     checkModulation();
+    checkInit();
     runRenders (dir, false);
     std::printf ("\n%s\n", failures == 0 ? "All DSP checks passed." : "DSP checks failed.");
     return failures == 0 ? 0 : 1;

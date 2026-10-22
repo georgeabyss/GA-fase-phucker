@@ -11,6 +11,9 @@ namespace fp::dsp
 //            (half- to full-wave with Drive), Crush (bits and sample rate); Bias shifts the curve
 //   then     a DC blocker, Phat (extra saturation of 150 Hz - 2.5 kHz, added in parallel), Tone (a
 //            tilt around 1 kHz, 50 % = neutral), Mix (dry/wet, with on / off)
+// Fully off, its output is the input delayed by exactly the latency (the oversampling filters would
+// still colour the top end); the oversampler keeps running, so switching on crossfades between two
+// warm paths.
 class Distortion
 {
 public:
@@ -37,6 +40,9 @@ private:
     };
 
     std::array<std::unique_ptr<juce::dsp::Oversampling<float>>, 6> oversamplers;   // [linear phase 2x 4x 8x, IIR 2x 4x 8x]
+    std::array<float, 4096> delayLine {};   // the input, delayed by the latency: the output while fully off
+    int delayPos = 0;
+    float bypass = 1.0f;                    // 1 = fully off: the delayed input
     juce::dsp::Oversampling<float>* active = nullptr;
     int factor = 1, latencySamples = 0;
     double rate = 48000.0;   // the oversampled rate

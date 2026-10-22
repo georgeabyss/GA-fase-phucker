@@ -37,6 +37,9 @@ void Distortion::reset()
     if (active != nullptr)
         active->reset();
     dcX = dcY = tiltLp = held = 0.0f;
+    delayLine.fill (0.0f);
+    delayPos = 0;
+    bypass = mix.target <= 0.0f ? 1.0f : 0.0f;
     holdCount = 0;
     phatHp.reset();
     phatLp.reset();
@@ -58,14 +61,33 @@ void Distortion::process (float* x, int n)
 {
     if (active == nullptr)
     {
-        shape (x, n);
+        shape (x, n);   // fully off, Mix 0 leaves it exactly as it was
         return;
     }
+
+    // the input, delayed by the latency: the output while fully off
+    float delayed[kSubBlock];
+    for (int i = 0; i < n; ++i)
+    {
+        delayLine[(size_t) delayPos] = x[i];
+        delayed[i] = delayLine[(size_t) ((delayPos - latencySamples) & 4095)];
+        delayPos = (delayPos + 1) & 4095;
+    }
+
     float* channels[1] = { x };
     juce::dsp::AudioBlock<float> block (channels, 1, (size_t) n);
     auto up = active->processSamplesUp (juce::dsp::AudioBlock<const float> (block));
     shape (up.getChannelPointer (0), (int) up.getNumSamples());
     active->processSamplesDown (block);
+
+    // fully off (Mix has arrived at 0): the delayed input; switching on fades over to the oversampled path
+    const bool off = mix.target <= 0.0f && mix.current < 1.0e-6f;
+    const float step = 1.0f / (0.005f * (float) (rate / factor));
+    for (int i = 0; i < n; ++i)
+    {
+        bypass = off ? std::min (1.0f, bypass + step) : std::max (0.0f, bypass - step);
+        x[i] += (delayed[i] - x[i]) * bypass;
+    }
 }
 
 void Distortion::shape (float* y, int n)

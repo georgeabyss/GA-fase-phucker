@@ -129,7 +129,7 @@ void FasePhuckerAudioProcessor::randomise (int band, std::optional<fp::Section> 
                 put (id (order), chance (0.5f));
                 break;
             case Section::feedback:
-                put (id (fbAmt), std::round (between (0.0f, 85.0f)));   // below 95 %: never close to ringing on
+                put (id (fbAmt), std::round (between (0.0f, 70.0f)));   // below 80 %, where the loop starts to ring on
                 put (id (fbTime), logBetween (0.1f, 50.0f));
                 put (id (fbTone), std::round (between (0.0f, 100.0f)));
                 put (id (invert), chance (0.3f));

@@ -104,7 +104,7 @@ namespace
         m.real   (id (pinch),   name ("Pinch"), linear (0.0f, 100.0f), 50.0f, percent);
         m.real   (id (spread),  name ("Spread"), linear (0.0f, 100.0f), 30.0f, percent);
         m.real   (id (dispMix), name ("Disperse Mix"), linear (0.0f, 100.0f), 100.0f, percent);
-        m.toggle (id (dispOn),  name ("Disperse On"), true);
+        m.toggle (id (dispOn),  name ("Disperse On"), false);   // Init is neutral: every section starts off
 
         // Env Follower
         m.real   (id (envGain), name ("Env Gain"), linear (-12.0f, 24.0f), 0.0f, decibels);
@@ -121,7 +121,7 @@ namespace
         m.real   (id (phat),     name ("Phat"), linear (0.0f, 100.0f), 0.0f, percent);
         m.real   (id (distTone), name ("Distortion Tone"), linear (0.0f, 100.0f), 50.0f, percent);
         m.real   (id (distMix),  name ("Distortion Mix"), linear (0.0f, 100.0f), 100.0f, percent);
-        m.toggle (id (distOn),   name ("Distortion On"), true);
+        m.toggle (id (distOn),   name ("Distortion On"), false);
 
         // Feedback
         m.toggle (id (invert), name ("Feedback Invert"), false);
@@ -129,7 +129,7 @@ namespace
         m.real   (id (fbTime), name ("Feedback Time"), logarithmic (0.1f, 50.0f), 5.0f, millis);
         m.real   (id (fbTone), name ("Feedback Tone"), linear (0.0f, 100.0f), 50.0f, percent);
         m.real   (id (fbMix),  name ("Feedback Mix"), linear (0.0f, 100.0f), 100.0f, percent);
-        m.toggle (id (fbOn),   name ("Feedback On"), true);
+        m.toggle (id (fbOn),   name ("Feedback On"), false);
     }
 
     const char* modLabel (const ModTarget& t)

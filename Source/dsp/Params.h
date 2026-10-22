@@ -18,7 +18,7 @@ struct ChannelParams
 {
     // Disperse
     int   stages = 64;
-    bool  unhinged = false, jitter = false, dispOn = true;
+    bool  unhinged = false, jitter = false, dispOn = false;
     float freq = 400.0f;          // Hz
     float pinch = 0.5f;           // 0..1
     float spread = 0.3f;          // 0..1
@@ -31,7 +31,7 @@ struct ChannelParams
 
     // Distortion
     DistType type = DistType::noise;
-    bool  post = false, distOn = true;
+    bool  post = false, distOn = false;
     float drive = 0.3f;           // 0..1
     float bias = 0.0f;            // -1..1
     float phat = 0.0f;            // 0..1
@@ -39,7 +39,7 @@ struct ChannelParams
     float distMix = 1.0f;         // 0..1
 
     // Feedback
-    bool  invert = false, fbOn = true;
+    bool  invert = false, fbOn = false;
     float fbAmount = 0.0f;        // 0..0.95
     float fbTimeMs = 5.0f;
     float fbTone = 0.5f;          // 0..1, 0.5 = neutral

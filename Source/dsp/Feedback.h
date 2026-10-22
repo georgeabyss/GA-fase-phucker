@@ -6,9 +6,11 @@
 namespace fp::dsp
 {
 // One channel's feedback loop, around the all-pass chain only (never around Distortion):
-//   z = x + fb,  y = chain (z),  fb = Amount * (Invert ? -1 : 1) * limit (tone (y, Time ago))
-// Time glides; Tone is a tilt around 1 kHz, normalised so it never adds gain (with Amount at most
-// 95 % the loop always decays); the limiter is a tanh. Mix is the section's dry/wet around the whole
+//   z = x + fb,  y = chain (z),  fb = 1.25 Amount * (Invert ? -1 : 1) * tanh (2 tone (y, Time ago)) / 2
+// The loop gain is 1.25 times Amount: from about 80 % up it rings on by itself (self-oscillation);
+// the tanh keeps that at about the signal's level (what comes back stays below ±0.6), a DC blocker keeps it audible (never latched onto DC). Time glides;
+// Tone is a tilt around 1 kHz, normalised so it never adds
+// gain (the onset stays at 80 % whatever the Tone). Mix is the section's dry/wet around the whole
 // loop, only while Feedback is on.
 class Feedback
 {
@@ -31,6 +33,7 @@ private:
     float tilt = 0.0f, tiltTarget = 0.0f;
     float sign = 1.0f;
     float smoothing = 0.01f, tiltCoef = 0.1f, tiltLp = 0.0f;
+    float dcCoef = 0.999f, dcX = 0.0f, dcY = 0.0f;
     bool fresh = true;
 };
 }
