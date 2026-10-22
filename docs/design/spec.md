@@ -204,6 +204,8 @@ Every call made on 21–22 Oct 2026; "Rejected" lists what was tried and dropped
 | Mod assignment | Hidden `_on` parameter per target; donuts in fixed knob order | Depth 0 = unassigned; assignment order in the state | Assigned at 0 % stays; no extra state. Decided 22 Oct |
 | Automation names | Follow band count and stereo mode | Static "Band 2 · Ch 2" names | Readable. Decided 22 Oct |
 | Init | Single band | 3 Bands | Simplest start. Decided 22 Oct |
+| Section grid | 12 columns of 60 layout pixels, 30 between Disperse and Env Follower (and Distortion and Feedback) | Columns without a gap | The section rules stay apart; the native 64 px drop-downs nearly touch in a 60 px column. Decided 22 Oct |
+| Single band card | Named FULL | — | Decided 22 Oct |
 | Band off | Passes the band unprocessed | Mutes it | Keep the rest of the spectrum. Decided 22 Oct |
 | Tone (Distortion, Feedback) | Tilt around 1 kHz, 50 % = neutral | Low-pass sweep | Decided 22 Oct |
 | Feedback loop | Loop gain 1.25 × Amount: self-oscillates from about 80 %; tanh limiter keeps it near the signal's level, a DC blocker keeps it audible; Tone never adds gain (the onset stays at 80 %); Mix only while Feedback is on | Always decaying (gain ≤ 0.95) | Feedback should self-oscillate. Decided 22 Oct |

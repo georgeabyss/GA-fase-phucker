@@ -84,6 +84,9 @@ namespace prop
     inline constexpr const char* presetIsUser = ga::prop::presetIsUser;   // "presetUser"
     inline constexpr const char* lockDryWet   = ga::prop::lockDryWet;     // "lockDryWet"
     inline constexpr const char* lockBassMono = ga::prop::lockBassMono;   // "lockBassMono"
+
+    // Fase Phucker's own
+    inline constexpr const char* selectedBand = "selectedBand";   // the band the sections show (0..2)
 }
 
 namespace fp

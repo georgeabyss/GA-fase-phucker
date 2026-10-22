@@ -13,9 +13,10 @@ The design, features and build steps are in [docs/design/spec.md](docs/design/sp
 
 ## Status
 
-Build step 4 of 5: the sound is done. The crossover and bands, Disperse, Distortion (oversampled on
-its own), Feedback and the Env Follower with its modulation all run; the window still shows only the
-header, the preset browser and the bottom strip. The bands and sections come in step 5.
+Build step 5 of 5: the interface. The band strip (cards with their impulse response, split handles),
+Disperse | Env Follower and Distortion | Feedback with their channel links, dice and modulation
+(drag the grip onto a knob), on the GA framework. `tools/make_screenshots.sh` checks the interface
+against `tests/reference/screenshots`.
 
 ## Build
 
